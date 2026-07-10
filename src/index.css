@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 44% 9%;
+    --card-foreground: 210 40% 98%;
+    --primary: 243 75% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 243 75% 66%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+/* Light-mode content pane gets a deliberate off-white; dark mode keeps its own dark surface. */
+#root main {
+    background: #f5f7fa;
+}
+.dark #root main {
+    background: transparent;
+}
+@layer utilities {
+  /* Slim overlay scrollbar for the dark sidebar */
+  .scroll-dark {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  .scroll-dark::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-dark::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-dark::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 9999px;
+  }
+  .scroll-dark:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Slim scrollbar for light content areas */
+  .scroll-light {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+  }
+  .scroll-light::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-light::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-light::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.14);
+    border-radius: 9999px;
+  }
+  .scroll-light:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.24);
+  }
+}
+
+/* App boot splash animations (see components/ui/app-splash.tsx) */
+@keyframes splash-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(0.97); }
+}
+@keyframes splash-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
+}
