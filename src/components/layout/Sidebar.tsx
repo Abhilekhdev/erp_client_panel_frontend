@@ -6,18 +6,24 @@ import { usePermissions } from '@/features/auth/usePermission';
 import { cn } from '@/lib/utils';
 
 function useVisibleNav(): NavEntry[] {
-  const { has } = usePermissions();
-  return useMemo(
-    () =>
-      NAVIGATION.map((entry) => {
-        if (entry.children) {
-          const children = entry.children.filter((c) => !c.permission || has(c.permission));
-          return children.length ? { ...entry, children } : null;
-        }
-        return !entry.permission || has(entry.permission) ? entry : null;
-      }).filter((e): e is NavEntry => e !== null),
-    [has],
-  );
+  const { has, hasAny } = usePermissions();
+  return useMemo(() => {
+    // Visible if it declares no gate, or the user holds its `permission` / ANY of its `permissions`.
+    const allowed = (item: { permission?: string; permissions?: string[] }): boolean =>
+      (!item.permission && !item.permissions) ||
+      (item.permission ? has(item.permission) : false) ||
+      (item.permissions ? hasAny(item.permissions) : false);
+
+    return NAVIGATION.map((entry) => {
+      // A group must first pass its OWN gate — otherwise an un-permissioned child would leak it in.
+      if (!allowed(entry)) return null;
+      if (entry.children) {
+        const children = entry.children.filter(allowed);
+        return children.length ? { ...entry, children } : null;
+      }
+      return entry;
+    }).filter((e): e is NavEntry => e !== null);
+  }, [has, hasAny]);
 }
 
 // ConnectCRM look: white rail, slate idle text, light-violet active pill with violet text.

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
-import { AlertCircle, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { useAuth } from '../useAuth';
 
 export function LoginForm() {
   const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -26,7 +28,7 @@ export function LoginForm() {
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{getApiErrorMessage(login.error, 'Invalid email or password')}</span>
@@ -60,12 +62,20 @@ export function LoginForm() {
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             placeholder="••••••••"
-            className="pl-9"
+            className="pl-9 pr-10"
             {...register('password')}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
         {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
       </div>
@@ -79,7 +89,12 @@ export function LoginForm() {
         Remember me for 30 days
       </label>
 
-      <Button type="submit" size="lg" className="w-full" isLoading={login.isPending}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full shadow-lg shadow-primary/25 transition-shadow hover:shadow-primary/40"
+        isLoading={login.isPending}
+      >
         Log in
       </Button>
     </form>

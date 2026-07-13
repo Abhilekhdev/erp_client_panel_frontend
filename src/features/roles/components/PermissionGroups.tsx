@@ -22,6 +22,15 @@ export function PermissionGroups({ catalog, selected, onChange }: Props) {
     onChange(next);
   };
 
+  // Radio groups are mutually exclusive but ALSO optional — an HTML radio can't be un-checked once
+  // picked, so a "None" choice is the only way to REMOVE the permission again (e.g. drop supplier.view).
+  const clearRadio = (options: { value: string }[]) => {
+    const next = new Set(selected);
+    options.forEach((o) => next.delete(o.value));
+    onChange(next);
+  };
+  const noneSelected = (options: { value: string }[]) => !options.some((o) => selected.has(o.value));
+
   const checkboxesOf = (g: PermGroup) => g.items.filter((i): i is PermCheckbox => i.type === 'checkbox');
   const allChecked = (g: PermGroup) => {
     const cbs = checkboxesOf(g);
@@ -71,6 +80,16 @@ export function PermissionGroups({ catalog, selected, onChange }: Props) {
                   key={`radio-${g.key}-${idx}`}
                   className="space-y-1.5 rounded-lg bg-muted/40 p-2.5 sm:col-span-2 lg:col-span-3"
                 >
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name={`${g.key}-${item.name}`}
+                      checked={noneSelected(item.options)}
+                      onChange={() => clearRadio(item.options)}
+                      className="h-4 w-4 shrink-0 border-input accent-primary"
+                    />
+                    <span className="text-muted-foreground">None</span>
+                  </label>
                   {item.options.map((o) => (
                     <label key={o.value} className="flex cursor-pointer items-center gap-2 text-sm">
                       <input

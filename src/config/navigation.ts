@@ -57,17 +57,47 @@ export interface NavChild {
   label: string;
   to: string;
   icon: LucideIcon;
-  permission?: string;
+  permission?: string; // shown if the user holds this permission (admin bypasses)
+  permissions?: string[]; // …or ANY of these
 }
 
 export interface NavEntry {
   label: string;
   icon: LucideIcon;
   to?: string; // set = single link
-  permission?: string;
+  permission?: string; // shown if the user holds this permission (admin bypasses)
+  /**
+   * …or ANY of these. For a GROUP this gates the whole group — set it to every permission that grants
+   * access to something inside, so the group hides entirely when the user has none of them (otherwise
+   * an un-permissioned child would keep the group visible to everyone).
+   */
+  permissions?: string[];
   section?: 'main' | 'setup';
   children?: NavChild[];
 }
+
+// The Essentials/HRM permissions that should reveal the single "HRM" sidebar link (any one suffices).
+const HRM_ANY = [
+  'essentials.view_all_attendance',
+  'essentials.view_own_attendance',
+  'essentials.allow_users_for_attendance_from_web',
+  'essentials.crud_all_leave',
+  'essentials.crud_own_leave',
+  'essentials.crud_leave_type',
+  'essentials.approve_leave',
+  'essentials.view_all_payroll',
+  'essentials.create_payroll',
+  'essentials.access_sales_target',
+  'essentials.crud_department',
+  'essentials.crud_designation',
+  'essentials.add_holiday',
+  'essentials.edit_holiday',
+  'essentials.delete_holiday',
+  'essentials.view_allowance_and_deduction',
+  'essentials.add_allowance_and_deduction',
+  'essentials.activity_log',
+  'edit_essentials_settings',
+];
 
 /**
  * Sidebar structure mirrors GOURI_DEV's `admin-sidebar-menu` (order + grouping + permissions),
@@ -79,6 +109,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'User Management',
     icon: Users,
+    permissions: ['user.view', 'user.create', 'user.update', 'user.delete', 'roles.view', 'roles.create', 'roles.update', 'roles.delete'],
     children: [
       { label: 'Users', to: '/users', icon: User, permission: 'user.view' },
       { label: 'Roles', to: '/roles', icon: ShieldCheck, permission: 'roles.view' },
@@ -88,6 +119,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Contacts',
     icon: Contact,
+    permissions: ['supplier.view', 'supplier.view_own', 'supplier.create', 'customer.view', 'customer.view_own', 'customer.create'],
     children: [
       { label: 'Suppliers', to: '/suppliers', icon: Truck, permission: 'supplier.view' },
       { label: 'Customers', to: '/customers', icon: UserRound, permission: 'customer.view' },
@@ -98,6 +130,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Products',
     icon: Boxes,
+    permissions: ['product.view', 'product.create', 'product.update', 'product.delete', 'product.opening_stock', 'unit.view', 'category.view', 'brand.view'],
     children: [
       { label: 'All Products', to: '/products', icon: List, permission: 'product.view' },
       { label: 'Add Product', to: '/products/create', icon: PlusCircle, permission: 'product.create' },
@@ -115,6 +148,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Purchases',
     icon: ArrowDownCircle,
+    permissions: ['purchase.view', 'view_own_purchase', 'purchase.create', 'purchase.update', 'purchase.delete'],
     children: [
       { label: 'Requisitions', to: '/purchase-requisitions', icon: ClipboardList },
       { label: 'Purchase Orders', to: '/purchase-orders', icon: ClipboardCheck },
@@ -126,6 +160,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Sell',
     icon: ShoppingCart,
+    permissions: ['sell.view', 'sell.create', 'sell.update', 'sell.delete', 'direct_sell.view', 'view_own_sell_only', 'direct_sell.access', 'direct_sell.update'],
     children: [
       { label: 'Sales Orders', to: '/sales-orders', icon: ClipboardList },
       { label: 'All Sales', to: '/sales', icon: List, permission: 'sell.view' },
@@ -144,6 +179,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Stock Transfers',
     icon: ArrowLeftRight,
+    permissions: ['purchase.view', 'view_own_purchase', 'purchase.create'],
     children: [
       { label: 'All Transfers', to: '/stock-transfers', icon: List, permission: 'purchase.view' },
       { label: 'Add Transfer', to: '/stock-transfers/create', icon: PlusCircle, permission: 'purchase.create' },
@@ -152,6 +188,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Stock Adjustment',
     icon: SlidersHorizontal,
+    permissions: ['purchase.view', 'view_own_purchase', 'purchase.create'],
     children: [
       { label: 'All Adjustments', to: '/stock-adjustments', icon: List, permission: 'purchase.view' },
       { label: 'Add Adjustment', to: '/stock-adjustments/create', icon: PlusCircle, permission: 'purchase.create' },
@@ -160,15 +197,17 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Expenses',
     icon: MinusCircle,
+    permissions: ['all_expense.access', 'view_own_expense', 'expense.add', 'expense.edit', 'expense.delete'],
     children: [
-      { label: 'All Expenses', to: '/expenses', icon: List },
+      { label: 'All Expenses', to: '/expenses', icon: List, permissions: ['all_expense.access', 'view_own_expense'] },
       { label: 'Add Expense', to: '/expenses/create', icon: PlusCircle, permission: 'expense.add' },
-      { label: 'Expense Categories', to: '/expense-categories', icon: Tags },
+      { label: 'Expense Categories', to: '/expense-categories', icon: Tags, permissions: ['all_expense.access', 'view_own_expense'] },
     ],
   },
   {
     label: 'Claims',
     icon: Receipt,
+    permissions: ['essentials.view_claim_reimbursement', 'essentials.add_claim_reimbursement', 'essentials.approve_claim_reimbursement', 'essentials.claim_reimbursement_category', 'essentials.add_claim_reimbursement_category'],
     children: [
       { label: 'All Claims', to: '/claims', icon: Receipt },
       { label: 'Claim Categories', to: '/claim-categories', icon: Tags },
@@ -189,6 +228,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Reports',
     icon: BarChart3,
+    permissions: ['purchase_n_sell_report.view', 'tax_report.view', 'contacts_report.view', 'expense_report.view', 'profit_loss_report.view', 'stock_report.view', 'trending_product_report.view', 'register_report.view', 'sales_representative.view'],
     children: [
       { label: 'Profit / Loss', to: '/reports/profit-loss', icon: FileBarChart, permission: 'profit_loss_report.view' },
       { label: 'Purchase & Sale', to: '/reports/purchase-sale', icon: ArrowLeftRight, permission: 'purchase_n_sell_report.view' },
@@ -205,10 +245,11 @@ export const NAVIGATION: NavEntry[] = [
   },
   // HRM is a single sidebar entry → HR Dashboard. All HRM sections are reached via the horizontal
   // tab bar on the HRM pages (mirrors GOURI: one "HRM" menu item, everything else in the top tabs).
-  { label: 'HRM', icon: UserCog, to: '/hrm' },
+  { label: 'HRM', icon: UserCog, to: '/hrm', permissions: HRM_ANY },
   {
     label: 'Manufacturing',
     icon: Factory,
+    permissions: ['manufacturing.access_recipe', 'manufacturing.access_production', 'manufacturing.add_recipe', 'manufacturing.edit_recipe'],
     children: [
       { label: 'Recipes', to: '/manufacturing/recipes', icon: BookOpen },
       { label: 'Production', to: '/manufacturing/production', icon: PackagePlus },
@@ -216,7 +257,7 @@ export const NAVIGATION: NavEntry[] = [
     ],
   },
 
-  { label: 'Orders', icon: ClipboardList, to: '/orders' },
+  { label: 'Orders', icon: ClipboardList, to: '/orders', permissions: ['sell.view', 'direct_sell.view', 'view_own_sell_only'] },
 
   { label: 'Notification Templates', icon: Mail, to: '/notification-templates', permission: 'send_notification', section: 'setup' },
 
@@ -224,6 +265,7 @@ export const NAVIGATION: NavEntry[] = [
     label: 'Settings',
     icon: Settings,
     section: 'setup',
+    permissions: ['business_settings.access', 'barcode_settings.access', 'invoice_settings.access', 'tax_rate.view', 'access_tables', 'access_printers'],
     children: [
       { label: 'Business Settings', to: '/settings/business', icon: Building2, permission: 'business_settings.access' },
       { label: 'Business Locations', to: '/settings/locations', icon: MapPin, permission: 'business_settings.access' },

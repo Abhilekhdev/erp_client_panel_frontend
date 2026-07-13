@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import {
   createAttendance,
@@ -41,7 +42,13 @@ export function AllAttendanceTab() {
     queryKey: ['attendance-summary', filters],
     queryFn: () => getAttendanceSummary(filters),
   });
+  // Row scoping (seeing everyone vs. only your own) follows the backend, which keys off admin.
   const canManageAll = data?.canManageAll ?? false;
+  // Action visibility follows the actual permissions the backend routes enforce (admin bypasses).
+  const { has } = usePermissions();
+  const canEdit = has('essentials.edit_attendance');
+  const canDelete = has('essentials.delete_attendance');
+  const canAdd = has('essentials.add_attendance');
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['attendance'] });
     setSelected(new Set());
@@ -117,7 +124,7 @@ export function AllAttendanceTab() {
     });
 
   const columns: Column<AttendanceRow>[] = [
-    ...(canManageAll
+    ...(canDelete
       ? [
           {
             key: 'sel',
@@ -136,7 +143,7 @@ export function AllAttendanceTab() {
     { key: 'ipAddress', header: 'IP address', render: (a) => <span className="text-muted-foreground">{a.ipAddress || '—'}</span> },
     { key: 'shift', header: 'Shift', render: (a) => a.shift || '—' },
     { key: 'activityCode', header: 'Activity Code', render: (a) => a.activityCode || '—' },
-    ...(canManageAll
+    ...(canEdit || canDelete
       ? [
           {
             key: 'actions',
@@ -145,12 +152,16 @@ export function AllAttendanceTab() {
             className: 'text-right',
             render: (a: AttendanceRow) => (
               <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEdit(a)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => window.confirm('Delete this record?') && remove.mutate(a.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {canEdit && (
+                  <Button variant="outline" size="sm" onClick={() => openEdit(a)} title="Edit">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button variant="destructive" size="sm" onClick={() => window.confirm('Delete this record?') && remove.mutate(a.id)} title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ),
           } as Column<AttendanceRow>,
@@ -192,22 +203,22 @@ export function AllAttendanceTab() {
             <Input type="date" className="w-40" value={filters.endDate} onChange={(e) => setFilter('endDate', e.target.value)} />
           </div>
           <div className="ml-auto flex items-end gap-2">
-            {canManageAll && (
-              <>
-                <Button size="sm" onClick={openCreate}>
-                  <Plus className="h-4 w-4" />
-                  Add latest attendance
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={!selected.size}
-                  onClick={() => window.confirm(`Delete ${selected.size} record(s)?`) && bulkDelete.mutate()}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Selected
-                </Button>
-              </>
+            {canAdd && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Add latest attendance
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={!selected.size}
+                onClick={() => window.confirm(`Delete ${selected.size} record(s)?`) && bulkDelete.mutate()}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected
+              </Button>
             )}
           </div>
         </CardContent>

@@ -19,13 +19,13 @@ const HRM_TABS: HrmTab[] = [
     to: '/hrm/attendance',
     perms: ['essentials.view_all_attendance', 'essentials.view_own_attendance'],
   },
-  { label: 'Payroll', to: '/hrm/payroll' },
-  { label: "Day's Off", to: '/hrm/holidays' },
+  { label: 'Payroll', to: '/hrm/payroll', perms: ['essentials.view_all_payroll', 'essentials.create_payroll'] },
+  { label: "Day's Off", to: '/hrm/holidays', perms: ['essentials.add_holiday', 'essentials.edit_holiday', 'essentials.delete_holiday'] },
   { label: 'Departments', to: '/hrm/departments', perms: ['essentials.crud_department'] },
   { label: 'Designations', to: '/hrm/designations', perms: ['essentials.crud_designation'] },
   { label: 'Structured Commission', to: '/hrm/sales-targets', perms: ['essentials.access_sales_target'] },
   { label: 'Settings', to: '/hrm/settings', perms: ['edit_essentials_settings'] },
-  { label: 'Activity Code', to: '/hrm/activity-log', perms: ['activity_log'] },
+  { label: 'Activity Code', to: '/hrm/activity-log', perms: ['essentials.activity_log'] },
 ];
 
 export function HrmTabs() {
