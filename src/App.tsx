@@ -28,6 +28,7 @@ import { RoleFormPage } from '@/features/roles/pages/RoleFormPage';
 import { RolesListPage } from '@/features/roles/pages/RolesListPage';
 import { UserFormPage } from '@/features/users/pages/UserFormPage';
 import { UsersListPage } from '@/features/users/pages/UsersListPage';
+import { UserViewPage } from '@/features/users/pages/UserViewPage';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -102,6 +103,7 @@ export function App() {
             <Route path="/users" element={<UsersListPage />} />
             <Route path="/users/create" element={<UserFormPage />} />
             <Route path="/users/:id/edit" element={<UserFormPage />} />
+            <Route path="/users/:id" element={<UserViewPage />} />
 
             {/* Contacts — real module (Suppliers / Customers / Customer Groups) */}
             <Route path="/suppliers" element={<ContactsListPage listType="supplier" />} />

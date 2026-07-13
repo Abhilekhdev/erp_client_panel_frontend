@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/common/DataTable';
@@ -65,6 +65,15 @@ export function UsersListPage() {
       className: 'text-right',
       render: (u) => (
         <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            title="View profile"
+            onClick={() => navigate(`/users/${u.id}`)}
+          >
+            <Eye className="h-4 w-4" />
+            View
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/users/${u.id}/edit`)}>
             <Pencil className="h-4 w-4" />
             Edit
