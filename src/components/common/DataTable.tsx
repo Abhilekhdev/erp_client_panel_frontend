@@ -1,8 +1,10 @@
-import { ChevronLeft, ChevronRight, Inbox, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, RotateCcw, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { ColumnToggle } from '@/components/common/ColumnToggle';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { cn } from '@/lib/utils';
 
 export interface Column<T> {
@@ -11,6 +13,10 @@ export interface Column<T> {
   render?: (row: T) => ReactNode;
   className?: string;
   headerClassName?: string;
+  /** Plain-text label for the "Customize Columns" menu (falls back to the header text / key). */
+  title?: string;
+  /** Set false to keep this column always visible (e.g. identity / actions). Default: true. */
+  hideable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -39,6 +45,13 @@ interface DataTableProps<T> {
 
   toolbar?: ReactNode;
   emptyMessage?: string;
+
+  // Reset filters — shows a "Reset" button next to the toolbar when filters are active.
+  onResetFilters?: () => void;
+  filtersActive?: boolean;
+
+  /** Enables the client-side "Customize Columns" control; the id namespaces its localStorage entry. */
+  columnsStorageKey?: string;
 }
 
 /** Windowed page numbers with ellipses: 1 … 4 5 6 … 343 */
@@ -77,9 +90,34 @@ export function DataTable<T>({
   onSelectionChange,
   toolbar,
   emptyMessage = 'No data',
+  onResetFilters,
+  filtersActive,
+  columnsStorageKey,
 }: DataTableProps<T>) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const colSpan = columns.length + (selectable ? 1 : 0);
+
+  // Client-side column visibility (persisted per table). Disabled when no storage key is given.
+  const [hiddenKeys, setHiddenKeys] = useLocalStorageState<string[]>(
+    columnsStorageKey ? `dt-cols:${columnsStorageKey}` : '',
+    [],
+  );
+  const hiddenSet = new Set(columnsStorageKey ? hiddenKeys : []);
+  const visibleColumns = columns.filter((c) => !hiddenSet.has(c.key));
+  const toggleItems = columns
+    .filter((c) => c.hideable !== false)
+    .map((c) => ({
+      key: c.key,
+      label: c.title ?? (typeof c.header === 'string' ? c.header : c.key),
+      visible: !hiddenSet.has(c.key),
+    }));
+  const toggleColumn = (key: string) =>
+    setHiddenKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  const showReset = Boolean(onResetFilters && filtersActive);
+  const showColumns = Boolean(columnsStorageKey) && toggleItems.length > 0;
+  const hasRight = Boolean(toolbar) || showReset || showColumns;
+
+  const colSpan = visibleColumns.length + (selectable ? 1 : 0);
   const pageKeys = data.map(rowKey);
   const allSelected = Boolean(selectable) && data.length > 0 && pageKeys.every((k) => selectedKeys.includes(k));
 
@@ -98,7 +136,7 @@ export function DataTable<T>({
 
   return (
     <div className="space-y-4">
-      {(onSearchChange || toolbar) && (
+      {(onSearchChange || hasRight) && (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {onSearchChange ? (
             <div className="relative w-full lg:max-w-sm">
@@ -113,7 +151,24 @@ export function DataTable<T>({
           ) : (
             <div />
           )}
-          {toolbar && <div className="flex flex-wrap items-center gap-2">{toolbar}</div>}
+          {hasRight && (
+            <div className="flex flex-wrap items-center gap-2">
+              {toolbar}
+              {showReset && (
+                <button
+                  type="button"
+                  onClick={onResetFilters}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </button>
+              )}
+              {showColumns && (
+                <ColumnToggle items={toggleItems} onToggle={toggleColumn} onReset={() => setHiddenKeys([])} />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -132,7 +187,7 @@ export function DataTable<T>({
                   />
                 </TH>
               )}
-              {columns.map((c) => (
+              {visibleColumns.map((c) => (
                 <TH key={c.key} className={c.headerClassName}>
                   {c.header}
                 </TH>
@@ -148,7 +203,7 @@ export function DataTable<T>({
                       <Skeleton className="h-4 w-4" />
                     </TD>
                   )}
-                  {columns.map((c, ci) => (
+                  {visibleColumns.map((c, ci) => (
                     <TD key={c.key}>
                       <Skeleton className="h-4" style={{ width: `${45 + ((r * 7 + ci * 13) % 45)}%` }} />
                     </TD>
@@ -181,7 +236,7 @@ export function DataTable<T>({
                         />
                       </TD>
                     )}
-                    {columns.map((c) => (
+                    {visibleColumns.map((c) => (
                       <TD key={c.key} className={c.className}>
                         {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '')}
                       </TD>

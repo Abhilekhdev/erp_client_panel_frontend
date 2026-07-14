@@ -129,6 +129,7 @@ export function AllAttendanceTab() {
           {
             key: 'sel',
             header: '#',
+            hideable: false,
             render: (a: AttendanceRow) => (
               <input type="checkbox" className="h-4 w-4 rounded border-input accent-primary" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
             ),
@@ -148,6 +149,7 @@ export function AllAttendanceTab() {
           {
             key: 'actions',
             header: 'Action',
+            hideable: false,
             headerClassName: 'text-right',
             className: 'text-right',
             render: (a: AttendanceRow) => (
@@ -249,6 +251,15 @@ export function AllAttendanceTab() {
           setPage(1);
         }}
         searchPlaceholder="Search attendance…"
+        columnsStorageKey="attendance-all"
+        filtersActive={Boolean(
+          search || filters.employeeId || filters.activityCodeId || filters.startDate || filters.endDate,
+        )}
+        onResetFilters={() => {
+          setSearch('');
+          setFilters({ employeeId: '', activityCodeId: '', startDate: '', endDate: '' });
+          setPage(1);
+        }}
       />
 
       <Modal

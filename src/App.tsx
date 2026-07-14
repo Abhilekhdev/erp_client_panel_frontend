@@ -8,7 +8,10 @@ import { BusinessLocationsPage } from '@/features/business-locations/pages/Busin
 import { BusinessSettingsPage } from '@/features/business-settings/pages/BusinessSettingsPage';
 import { ContactFormPage } from '@/features/contacts/pages/ContactFormPage';
 import { ContactsListPage } from '@/features/contacts/pages/ContactsListPage';
+import { BrandsPage } from '@/features/brands/pages/BrandsPage';
+import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
 import { CustomerGroupsPage } from '@/features/customer-groups/pages/CustomerGroupsPage';
+import { LabelsPage } from '@/features/labels/pages/LabelsPage';
 import { InvoiceSettingsPage } from '@/features/invoice-schemes/pages/InvoiceSettingsPage';
 import { CommissionAgentFormPage } from '@/features/commission-agents/pages/CommissionAgentFormPage';
 import { CommissionAgentsListPage } from '@/features/commission-agents/pages/CommissionAgentsListPage';
@@ -24,8 +27,15 @@ import { LeaveTypesPage } from '@/features/hrm/pages/LeaveTypesPage';
 import { PayrollPage } from '@/features/hrm/pages/PayrollPage';
 import { SalesTargetsPage } from '@/features/hrm/pages/SalesTargetsPage';
 import { NotificationTemplatesPage } from '@/features/notification-templates/pages/NotificationTemplatesPage';
+import { ProductFormPage } from '@/features/products/pages/ProductFormPage';
+import { ProductsListPage } from '@/features/products/pages/ProductsListPage';
 import { RoleFormPage } from '@/features/roles/pages/RoleFormPage';
 import { RolesListPage } from '@/features/roles/pages/RolesListPage';
+import { SellingPriceGroupsPage } from '@/features/selling-price-groups/pages/SellingPriceGroupsPage';
+import { TaxRatesPage } from '@/features/tax-rates/pages/TaxRatesPage';
+import { UnitsPage } from '@/features/units/pages/UnitsPage';
+import { VariationTemplatesPage } from '@/features/variation-templates/pages/VariationTemplatesPage';
+import { WarrantiesPage } from '@/features/warranties/pages/WarrantiesPage';
 import { UserFormPage } from '@/features/users/pages/UserFormPage';
 import { UsersListPage } from '@/features/users/pages/UsersListPage';
 import { UserViewPage } from '@/features/users/pages/UserViewPage';
@@ -43,6 +53,16 @@ const CUSTOM_ROUTES = new Set([
   '/suppliers',
   '/customers',
   '/customer-groups',
+  '/products',
+  '/products/create',
+  '/labels',
+  '/units',
+  '/categories',
+  '/brands',
+  '/variations',
+  '/warranties',
+  '/selling-price-groups',
+  '/settings/tax-rates',
   '/settings/business',
   '/settings/locations',
   '/settings/invoice',
@@ -113,6 +133,21 @@ export function App() {
             <Route path="/customers/create" element={<ContactFormPage listType="customer" />} />
             <Route path="/customers/:id/edit" element={<ContactFormPage listType="customer" />} />
             <Route path="/customer-groups" element={<CustomerGroupsPage />} />
+
+            {/* Products — core module */}
+            <Route path="/products" element={<ProductsListPage />} />
+            <Route path="/products/create" element={<ProductFormPage />} />
+            <Route path="/products/:id/edit" element={<ProductFormPage />} />
+            <Route path="/labels" element={<LabelsPage />} />
+
+            {/* Products — catalog prerequisites */}
+            <Route path="/units" element={<UnitsPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/brands" element={<BrandsPage />} />
+            <Route path="/variations" element={<VariationTemplatesPage />} />
+            <Route path="/warranties" element={<WarrantiesPage />} />
+            <Route path="/selling-price-groups" element={<SellingPriceGroupsPage />} />
+            <Route path="/settings/tax-rates" element={<TaxRatesPage />} />
 
             {/* Business Settings — real module */}
             <Route path="/settings/business" element={<BusinessSettingsPage />} />

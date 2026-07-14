@@ -82,6 +82,7 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
       {
         key: 'contact',
         header: 'Contact',
+        hideable: false,
         render: (c) => (
           <div className="min-w-0">
             <div className="truncate font-medium">
@@ -150,6 +151,7 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
       {
         key: 'actions',
         header: 'Action',
+        hideable: false,
         headerClassName: 'text-right',
         className: 'text-right',
         render: (c) => (
@@ -217,6 +219,14 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
           setPage(1);
         }}
         searchPlaceholder={`Search ${cfg.title.toLowerCase()}…`}
+        columnsStorageKey={`contacts-${listType}`}
+        filtersActive={Boolean(search || status || (listType === 'customer' && customerGroupId))}
+        onResetFilters={() => {
+          setSearch('');
+          setStatus('');
+          setCustomerGroupId('');
+          setPage(1);
+        }}
         toolbar={
           <>
             <Select

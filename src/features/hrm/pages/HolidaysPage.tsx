@@ -176,6 +176,12 @@ export function HolidaysPage() {
           setPage(1);
         }}
         searchPlaceholder="Search holidays…"
+        filtersActive={Boolean(search || filters.locationId || filters.startDate || filters.endDate)}
+        onResetFilters={() => {
+          setSearch('');
+          setFilters({ locationId: '', startDate: '', endDate: '' });
+          setPage(1);
+        }}
       />
 
       <Modal
