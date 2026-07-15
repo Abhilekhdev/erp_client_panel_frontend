@@ -173,7 +173,7 @@ export function UserViewPage() {
   }
 
   const roleName = idToName(meta.roles, user.roleId) ?? '—';
-  const isAdmin = roleName === 'Admin';
+  const isAdmin = roleName === 'Super Admin';
   const department = idToName(meta.departments, user.essentialsDepartmentId);
   const designation = idToName(meta.designations, user.essentialsDesignationId);
   const primaryLocation = idToName(meta.locations, user.locationId);

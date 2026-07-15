@@ -14,7 +14,7 @@ export function AppLayout() {
   const { user, logout } = useAuth();
   const fullName = [user?.surname, user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
   const displayName = fullName || user?.email || 'User';
-  const role = user?.isBusinessAdmin ? 'Administrator' : (user?.roles?.[0] ?? 'Member');
+  const role = user?.isBusinessAdmin ? 'Super Admin' : (user?.roles?.[0] ?? 'Member');
 
   // Close the user dropdown on outside click.
   useEffect(() => {
