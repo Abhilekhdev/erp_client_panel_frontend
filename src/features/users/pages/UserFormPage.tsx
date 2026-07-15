@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -222,7 +222,9 @@ export function UserFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: meta } = useQuery({ queryKey: ['user-meta'], queryFn: getUserMeta });
+  // Pass the edited user id so the owner's own Admin role still appears on their form; it is never
+  // offered when creating a user or editing anyone else.
+  const { data: meta } = useQuery({ queryKey: ['user-meta', userId], queryFn: () => getUserMeta(userId) });
   const { data: user } = useQuery({
     queryKey: ['user', userId],
     queryFn: () => getUser(userId as number),
@@ -347,6 +349,12 @@ export function UserFormPage() {
               </option>
             ))}
           </Select>
+          {meta.roles.length === 0 && (
+            <p className="mt-1.5 text-xs text-amber-600">
+              No roles yet — create one under <Link to="/roles/create" className="font-medium underline">Roles → Add Role</Link>.
+              The <strong>Admin</strong> role is reserved for the business owner and can't be assigned.
+            </p>
+          )}
         </Field>
         <Field label="Locations" className="sm:col-span-2 lg:col-span-2">
           <Toggle

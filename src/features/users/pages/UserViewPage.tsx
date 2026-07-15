@@ -152,7 +152,7 @@ export function UserViewPage() {
     queryKey: ['user', userId],
     queryFn: () => getUser(userId),
   });
-  const { data: meta } = useQuery<UserMeta>({ queryKey: ['user-meta'], queryFn: getUserMeta });
+  const { data: meta } = useQuery<UserMeta>({ queryKey: ['user-meta'], queryFn: () => getUserMeta() });
 
   const fullName = useMemo(
     () => (user ? [user.surname, user.firstName, user.lastName].filter(Boolean).join(' ').trim() : ''),

@@ -19,8 +19,14 @@ export async function listUsers(params: {
   return data.data;
 }
 
-export async function getUserMeta(): Promise<UserMeta> {
-  const { data } = await api.get<Envelope<UserMeta>>('/users/meta');
+/**
+ * `userId` = the user being edited. The Admin role is reserved for the business owner, so it is only
+ * returned when editing the user who already holds it (never when creating / editing someone else).
+ */
+export async function getUserMeta(userId?: number): Promise<UserMeta> {
+  const { data } = await api.get<Envelope<UserMeta>>('/users/meta', {
+    params: userId ? { userId } : {},
+  });
   return data.data;
 }
 
