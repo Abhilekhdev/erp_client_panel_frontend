@@ -112,3 +112,26 @@
   0% { transform: translateX(-120%); }
   100% { transform: translateX(420%); }
 }
+
+/* Payslip printing: hide the whole app and lift only the slip onto the page.
+   GOURI generates the payslip PDF server-side (mpdf); this stack has no PDF engine, so
+   "Print / Save as PDF" uses the browser's print dialog instead. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #payslip-print,
+  #payslip-print * {
+    visibility: visible;
+  }
+  #payslip-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 16px;
+    color: #000;
+  }
+}

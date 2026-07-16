@@ -25,6 +25,8 @@ import {
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ActivityFeed } from '@/features/activity-log/components/ActivityFeed';
+import { usePermissions } from '@/features/auth/usePermission';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -134,12 +136,25 @@ function LoadingState() {
   );
 }
 
-type TabKey = 'overview' | 'employment' | 'personal' | 'finance';
+type TabKey = 'overview' | 'employment' | 'personal' | 'finance' | 'activity';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'employment', label: 'Employment & HR' },
   { key: 'personal', label: 'Personal' },
   { key: 'finance', label: 'Bank & Social' },
+  { key: 'activity', label: 'Activities' },
+];
+
+/**
+ * GOURI's user "Activities" tab only ever shows `forSubject($user)` — things done TO the account
+ * (added/edited/deleted, plus their own logins, which land there only because the causer and the
+ * subject happen to be the same person). "What has this user actually been doing?" is unanswerable
+ * from that page. We keep their view and add the one people actually want.
+ */
+type ActivityDirection = 'by' | 'on';
+const ACTIVITY_TABS: { key: ActivityDirection; label: string; hint: string }[] = [
+  { key: 'by', label: 'Done by this user', hint: 'Everything this user created, edited or deleted.' },
+  { key: 'on', label: 'Done to this account', hint: 'Changes made to this user’s own account, and their sign-ins.' },
 ];
 
 export function UserViewPage() {
@@ -147,6 +162,9 @@ export function UserViewPage() {
   const userId = Number(id);
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabKey>('overview');
+  const [activityTab, setActivityTab] = useState<ActivityDirection>('by');
+  const { has } = usePermissions();
+  const canSeeActivity = has('activity_log.view_all') || has('activity_log.view_own');
 
   const { data: user, isLoading, isError } = useQuery<UserDetail>({
     queryKey: ['user', userId],
@@ -258,7 +276,7 @@ export function UserViewPage() {
 
       {/* Tab bar */}
       <div className="mt-5 flex gap-1 overflow-x-auto border-b">
-        {TABS.map((t) => {
+        {TABS.filter((t) => t.key !== 'activity' || canSeeActivity).map((t) => {
           const active = t.key === tab;
           return (
             <button
@@ -375,6 +393,47 @@ export function UserViewPage() {
               <Row label="Custom field 3" value={user.customField3} />
               <Row label="Custom field 4" value={user.customField4} />
             </Section>
+          </div>
+        )}
+
+        {tab === 'activity' && canSeeActivity && (
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {ACTIVITY_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setActivityTab(t.key)}
+                  className={cn(
+                    'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    t.key === activityTab
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {ACTIVITY_TABS.find((t) => t.key === activityTab)?.hint}
+            </p>
+            {activityTab === 'by' ? (
+              <ActivityFeed
+                key="by"
+                cacheKey={`user-by-${userId}`}
+                baseQuery={{ userId }}
+                showUser={false}
+                emptyMessage="This user hasn’t made any changes yet"
+              />
+            ) : (
+              <ActivityFeed
+                key="on"
+                cacheKey={`user-on-${userId}`}
+                baseQuery={{ subjectType: 'User', subjectId: userId }}
+                emptyMessage="Nothing has been changed on this account yet"
+              />
+            )}
           </div>
         )}
       </div>

@@ -1,19 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BadgeDollarSign, Eye, Trash2 } from 'lucide-react';
+import { BadgeDollarSign, Eye, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DataTable, type Column } from '@/components/common/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
+import { Select } from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import {
   deletePayrollGroup,
   getPayrollGroup,
   listPayrollGroups,
   money,
-  payPayrollGroup,
+  updatePayrollGroup,
   type PayrollGroupRow,
 } from '../payroll.api';
+import { AddPaymentModal } from './AddPaymentModal';
 import { PayrollDetailView } from './PayrollDetailView';
 
 const payVariant = (s: string) => (s === 'paid' ? 'success' : s === 'partial' ? 'warning' : 'destructive');
@@ -24,6 +28,9 @@ export function PayrollGroupsTab() {
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
   const [viewId, setViewId] = useState<number | null>(null);
+  const [payId, setPayId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<PayrollGroupRow | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', status: 'final' as 'draft' | 'final' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-groups', page, pageSize, search],
@@ -41,10 +48,14 @@ export function PayrollGroupsTab() {
     qc.invalidateQueries({ queryKey: ['payroll-group'] });
   };
 
-  const pay = useMutation({
-    mutationFn: (id: number) => payPayrollGroup(id),
-    onSuccess: invalidate,
-    onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not mark as paid')),
+  const saveEdit = useMutation({
+    mutationFn: () =>
+      updatePayrollGroup(editing!.id, { name: editForm.name.trim(), status: editForm.status }),
+    onSuccess: () => {
+      invalidate();
+      setEditing(null);
+    },
+    onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not update group')),
   });
   const remove = useMutation({
     mutationFn: (id: number) => deletePayrollGroup(id),
@@ -80,13 +91,19 @@ export function PayrollGroupsTab() {
           <Button variant="outline" size="sm" onClick={() => setViewId(g.id)} title="View">
             <Eye className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditing(g);
+              setEditForm({ name: g.name, status: g.status === 'draft' ? 'draft' : 'final' });
+            }}
+            title="Edit"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
           {g.paymentStatus !== 'paid' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.confirm(`Mark "${g.name}" as fully paid?`) && pay.mutate(g.id)}
-              title="Mark paid"
-            >
+            <Button variant="outline" size="sm" onClick={() => setPayId(g.id)} title="Add payment">
               <BadgeDollarSign className="h-4 w-4" />
             </Button>
           )}
@@ -138,9 +155,15 @@ export function PayrollGroupsTab() {
             </span>
             <div className="flex gap-2">
               {detail && detail.paymentStatus !== 'paid' && (
-                <Button variant="outline" onClick={() => pay.mutate(detail.id)} isLoading={pay.isPending}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPayId(detail.id);
+                    setViewId(null);
+                  }}
+                >
                   <BadgeDollarSign className="h-4 w-4" />
-                  Mark paid
+                  Add payment
                 </Button>
               )}
               <Button variant="outline" onClick={() => setViewId(null)}>
@@ -174,6 +197,56 @@ export function PayrollGroupsTab() {
         ) : (
           <p className="text-sm text-muted-foreground">Loading…</p>
         )}
+      </Modal>
+
+      {/* Record payments for the group (GOURI pay_payroll_group) */}
+      <AddPaymentModal open={payId != null} onClose={() => setPayId(null)} groupId={payId} />
+
+      {/* Edit group — GOURI only allows name + status here */}
+      <Modal
+        open={editing != null}
+        onClose={() => setEditing(null)}
+        title="Edit payroll group"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => editForm.name.trim() && saveEdit.mutate()}
+              isLoading={saveEdit.isPending}
+            >
+              Update
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="grp-name">
+              Group name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="grp-name"
+              value={editForm.name}
+              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="grp-status">Status</Label>
+            <Select
+              id="grp-status"
+              value={editForm.status}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, status: e.target.value as 'draft' | 'final' }))
+              }
+            >
+              <option value="draft">Draft</option>
+              <option value="final">Final</option>
+            </Select>
+          </div>
+        </div>
       </Modal>
     </div>
   );

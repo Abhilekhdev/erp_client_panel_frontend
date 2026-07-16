@@ -11,6 +11,7 @@ import { ContactsListPage } from '@/features/contacts/pages/ContactsListPage';
 import { BrandsPage } from '@/features/brands/pages/BrandsPage';
 import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
 import { CustomerGroupsPage } from '@/features/customer-groups/pages/CustomerGroupsPage';
+import { ActivityLogPage } from '@/features/activity-log/pages/ActivityLogPage';
 import { LabelsPage } from '@/features/labels/pages/LabelsPage';
 import { InvoiceSettingsPage } from '@/features/invoice-schemes/pages/InvoiceSettingsPage';
 import { CommissionAgentFormPage } from '@/features/commission-agents/pages/CommissionAgentFormPage';
@@ -56,6 +57,7 @@ const CUSTOM_ROUTES = new Set([
   '/products',
   '/products/create',
   '/labels',
+  '/reports/activity-log',
   '/units',
   '/categories',
   '/brands',
@@ -139,6 +141,9 @@ export function App() {
             <Route path="/products/create" element={<ProductFormPage />} />
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
             <Route path="/labels" element={<LabelsPage />} />
+
+            {/* Reports */}
+            <Route path="/reports/activity-log" element={<ActivityLogPage />} />
 
             {/* Products — catalog prerequisites */}
             <Route path="/units" element={<UnitsPage />} />

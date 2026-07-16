@@ -9,10 +9,19 @@ export const api = axios.create({
   withCredentials: true, // send/receive the httpOnly refresh cookie
 });
 
-// Attach the in-memory access token to every request.
+// Attach the in-memory access token to every request + drop empty filter params.
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = store.getState().auth.accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // An unset filter is "no filter", not an empty value: sending `?status=` makes the API's
+  // enum/regex validators reject the request. Strip '' / null / undefined before it goes out.
+  if (config.params && typeof config.params === 'object' && !(config.params instanceof URLSearchParams)) {
+    const params = config.params as Record<string, unknown>;
+    config.params = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+    );
+  }
   return config;
 });
 

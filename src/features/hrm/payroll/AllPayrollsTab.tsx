@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, FileText, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { DataTable, type Column } from '@/components/common/DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import {
 } from '../payroll.api';
 import { GenerateModal } from './GenerateModal';
 import { PayrollDetailView } from './PayrollDetailView';
+import { PayslipModal } from './PayslipModal';
 
 const payVariant = (s: string) => (s === 'paid' ? 'success' : s === 'partial' ? 'warning' : 'destructive');
 const EMPTY = { employeeId: '' as number | '', departmentId: '' as number | '', designationId: '' as number | '', locationId: '' as number | '', month: '' };
@@ -30,6 +31,7 @@ export function AllPayrollsTab() {
   const [filters, setFilters] = useState(EMPTY);
   const [genOpen, setGenOpen] = useState(false);
   const [viewId, setViewId] = useState<number | null>(null);
+  const [slipId, setSlipId] = useState<number | null>(null);
 
   const { data: meta } = useQuery({ queryKey: ['payroll-meta'], queryFn: getPayrollMeta });
   const { data, isLoading } = useQuery({
@@ -65,9 +67,15 @@ export function AllPayrollsTab() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (p) => (
-        <Button variant="outline" size="sm" onClick={() => setViewId(p.id)}>
-          <Eye className="h-4 w-4" />
-        </Button>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setViewId(p.id)} title="View">
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setSlipId(p.id)} title="Payslip">
+            <FileText className="h-4 w-4" />
+            Payslip
+          </Button>
+        </div>
       ),
     },
   ];
@@ -163,6 +171,9 @@ export function AllPayrollsTab() {
       >
         {detail ? <PayrollDetailView payroll={detail} /> : <p className="text-sm text-muted-foreground">Loading…</p>}
       </Modal>
+
+      {/* Printable payslip (GOURI payslip/download-payslip) */}
+      <PayslipModal open={slipId != null} onClose={() => setSlipId(null)} payrollId={slipId} />
     </div>
   );
 }

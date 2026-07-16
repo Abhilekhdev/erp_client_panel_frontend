@@ -99,6 +99,9 @@ const HRM_ANY = [
   'edit_essentials_settings',
 ];
 
+/** Either permission opens Reports → Activity Log; they differ only in how many rows you see. */
+const ACTIVITY_LOG_ANY = ['activity_log.view_all', 'activity_log.view_own'];
+
 /**
  * Sidebar structure mirrors GOURI_DEV's `admin-sidebar-menu` (order + grouping + permissions),
  * plus the HRM (Essentials) and Manufacturing groups that modules inject there.
@@ -228,7 +231,7 @@ export const NAVIGATION: NavEntry[] = [
   {
     label: 'Reports',
     icon: BarChart3,
-    permissions: ['purchase_n_sell_report.view', 'tax_report.view', 'contacts_report.view', 'expense_report.view', 'profit_loss_report.view', 'stock_report.view', 'trending_product_report.view', 'register_report.view', 'sales_representative.view'],
+    permissions: ['purchase_n_sell_report.view', 'tax_report.view', 'contacts_report.view', 'expense_report.view', 'profit_loss_report.view', 'stock_report.view', 'trending_product_report.view', 'register_report.view', 'sales_representative.view', ...ACTIVITY_LOG_ANY],
     children: [
       { label: 'Profit / Loss', to: '/reports/profit-loss', icon: FileBarChart, permission: 'profit_loss_report.view' },
       { label: 'Purchase & Sale', to: '/reports/purchase-sale', icon: ArrowLeftRight, permission: 'purchase_n_sell_report.view' },
@@ -240,7 +243,8 @@ export const NAVIGATION: NavEntry[] = [
       { label: 'Expense Report', to: '/reports/expense', icon: MinusCircle, permission: 'expense_report.view' },
       { label: 'Sales Representative', to: '/reports/sales-rep', icon: User, permission: 'sales_representative.view' },
       { label: 'Customer & Supplier', to: '/reports/customer-supplier', icon: Contact, permission: 'contacts_report.view' },
-      { label: 'Activity Log', to: '/reports/activity-log', icon: Activity },
+      // "view own" also opens this page — it just narrows the rows — so either permission reveals it.
+      { label: 'Activity Log', to: '/reports/activity-log', icon: Activity, permissions: ACTIVITY_LOG_ANY },
     ],
   },
   // HRM is a single sidebar entry → HR Dashboard. All HRM sections are reached via the horizontal
