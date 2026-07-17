@@ -36,7 +36,7 @@ export function UsersListPage() {
         <div className="min-w-0">
           <div className="truncate font-medium">{u.name || '—'}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {u.username ? `@${u.username}` : 'Login disabled'}
+            {u.username ? `@${u.username}` : ''}
           </div>
         </div>
       ),

@@ -127,7 +127,8 @@ export const NAVIGATION: NavEntry[] = [
       { label: 'Suppliers', to: '/suppliers', icon: Truck, permission: 'supplier.view' },
       { label: 'Customers', to: '/customers', icon: UserRound, permission: 'customer.view' },
       { label: 'Customer Groups', to: '/customer-groups', icon: Users, permission: 'customer.view' },
-      { label: 'Import Contacts', to: '/contacts/import', icon: Upload, permission: 'supplier.create' },
+      // Either create permission opens the importer — GOURI gates it on an OR too.
+      { label: 'Import Contacts', to: '/contacts/import', icon: Upload, permissions: ['supplier.create', 'customer.create'] },
     ],
   },
   {

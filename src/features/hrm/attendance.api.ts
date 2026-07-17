@@ -132,6 +132,25 @@ export const clockIn = async (b: { note?: string; location?: string }) =>
 export const clockOut = async (b: { note?: string; location?: string }) =>
   (await api.post<Envelope<ClockStatus>>('/hrm/attendance/clock-out', b)).data.data;
 
+// ── Import ──────────────────────────────────────────────
+export interface ImportRow {
+  email: string;
+  clockInTime: string;
+  clockOutTime?: string;
+  activityCode?: string;
+  shift?: string;
+  clockInNote?: string;
+  clockOutNote?: string;
+  ipAddress?: string;
+}
+export interface ImportResult {
+  imported: number;
+  failed: number;
+  errors: { row: number; message: string }[];
+}
+export const importAttendance = async (rows: ImportRow[]) =>
+  (await api.post<Envelope<ImportResult>>('/hrm/attendance/import', { rows })).data.data;
+
 // ── By shift / by date ──────────────────────────────────
 export interface ByShiftRow {
   shift: string;

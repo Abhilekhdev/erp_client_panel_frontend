@@ -12,6 +12,7 @@ import { BrandsPage } from '@/features/brands/pages/BrandsPage';
 import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
 import { CustomerGroupsPage } from '@/features/customer-groups/pages/CustomerGroupsPage';
 import { ActivityLogPage } from '@/features/activity-log/pages/ActivityLogPage';
+import { ContactsImportPage } from '@/features/contacts/pages/ContactsImportPage';
 import { LabelsPage } from '@/features/labels/pages/LabelsPage';
 import { InvoiceSettingsPage } from '@/features/invoice-schemes/pages/InvoiceSettingsPage';
 import { CommissionAgentFormPage } from '@/features/commission-agents/pages/CommissionAgentFormPage';
@@ -54,6 +55,7 @@ const CUSTOM_ROUTES = new Set([
   '/suppliers',
   '/customers',
   '/customer-groups',
+  '/contacts/import',
   '/products',
   '/products/create',
   '/labels',
@@ -135,6 +137,7 @@ export function App() {
             <Route path="/customers/create" element={<ContactFormPage listType="customer" />} />
             <Route path="/customers/:id/edit" element={<ContactFormPage listType="customer" />} />
             <Route path="/customer-groups" element={<CustomerGroupsPage />} />
+            <Route path="/contacts/import" element={<ContactsImportPage />} />
 
             {/* Products — core module */}
             <Route path="/products" element={<ProductsListPage />} />

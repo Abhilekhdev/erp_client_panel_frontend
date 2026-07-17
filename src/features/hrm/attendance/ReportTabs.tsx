@@ -1,11 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { Download, Info } from 'lucide-react';
-import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { AlertCircle, CheckCircle2, Download, Info, Loader2, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getAttendanceByDate, getAttendanceByShift } from '../attendance.api';
+import { getApiErrorMessage } from '@/lib/api/axios';
+import {
+  getAttendanceByDate,
+  getAttendanceByShift,
+  importAttendance,
+  type ImportResult,
+  type ImportRow,
+} from '../attendance.api';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
@@ -116,32 +123,184 @@ export function ByDateTab() {
   );
 }
 
+// A clear, standard date-time format with a concrete example (no more cryptic "Y-m-d H:i:s").
+const DATETIME_HINT = 'YYYY-MM-DD HH:MM:SS (e.g. 2026-07-16 09:30:00)';
+
 const IMPORT_COLUMNS = [
-  ['1', 'Email', 'Required'],
-  ['2', 'Clock in time', 'Required (Y-m-d H:i:s)'],
-  ['3', 'Clock out time', 'Optional'],
+  ['1', 'Email', 'Required — the employee’s login email'],
+  ['2', 'Clock in time', `Required — ${DATETIME_HINT}`],
+  ['3', 'Clock out time', `Optional — ${DATETIME_HINT}`],
   ['4', 'Activity Code', 'Optional'],
-  ['5', 'Shift', 'Optional'],
+  ['5', 'Shift', 'Optional — the shift name'],
   ['6', 'Clock in note', 'Optional'],
   ['7', 'Clock out note', 'Optional'],
   ['8', 'IP address', 'Optional'],
 ];
 
+/** Build + download the attendance import template as a CSV (client-side only — no backend needed). */
+function downloadAttendanceTemplate() {
+  const headers = IMPORT_COLUMNS.map(([, name]) => name);
+  const example = [
+    'employee@example.com',
+    '2026-07-16 09:30:00',
+    '2026-07-16 18:00:00',
+    '',
+    'Morning Shift',
+    '',
+    '',
+    '',
+  ];
+  const csv = [headers, example].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'attendance-import-template.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Parse one CSV line into fields, honouring double-quoted values with escaped "" quotes. */
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else inQ = false;
+      } else cur += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === ',') {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
+/** Turn the uploaded CSV text into import rows (template column order; header row auto-skipped). */
+function csvToRows(text: string): ImportRow[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (!lines.length) return [];
+  const first = parseCsvLine(lines[0]).map((c) => c.toLowerCase());
+  const startIdx = first[0] === 'email' ? 1 : 0; // skip header if present
+  return lines.slice(startIdx).map((line) => {
+    const c = parseCsvLine(line);
+    return {
+      email: c[0] ?? '',
+      clockInTime: c[1] ?? '',
+      clockOutTime: c[2] || undefined,
+      activityCode: c[3] || undefined,
+      shift: c[4] || undefined,
+      clockInNote: c[5] || undefined,
+      clockOutNote: c[6] || undefined,
+      ipAddress: c[7] || undefined,
+    };
+  });
+}
+
 export function ImportTab() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState('');
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [error, setError] = useState('');
+
+  const upload = useMutation({
+    mutationFn: (rows: ImportRow[]) => importAttendance(rows),
+    onSuccess: (r) => setResult(r),
+    onError: (e) => setError(getApiErrorMessage(e, 'Could not import attendance')),
+  });
+
+  const onFile = async (file: File) => {
+    setError('');
+    setResult(null);
+    setFileName(file.name);
+    try {
+      const text = await file.text();
+      const rows = csvToRows(text);
+      if (!rows.length) {
+        setError('The file has no data rows.');
+        return;
+      }
+      upload.mutate(rows);
+    } catch {
+      setError('Could not read the file.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
         <Info className="h-4 w-4 shrink-0 text-primary" />
-        <span>Bulk Excel import is being finalised. The expected file format is below.</span>
+        <span>Download the template, fill one row per attendance record, then upload. Date-time columns use {DATETIME_HINT}.</span>
       </div>
-      <button
-        type="button"
-        disabled
-        className="inline-flex items-center gap-2 rounded-md bg-emerald-600/70 px-3 py-2 text-sm font-medium text-white opacity-60"
-      >
-        <Download className="h-4 w-4" />
-        Download template
-      </button>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={downloadAttendanceTemplate}
+          className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          <Download className="h-4 w-4" />
+          Download template
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void onFile(f);
+            e.target.value = ''; // allow re-selecting the same file
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={upload.isPending}
+          className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          Import from CSV
+        </button>
+        {fileName && <span className="text-sm text-muted-foreground">{fileName}</span>}
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {result && (
+        <div className="space-y-2 rounded-md border p-3 text-sm">
+          <div className="flex items-center gap-2 font-medium">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            Imported {result.imported} record{result.imported === 1 ? '' : 's'}
+            {result.failed > 0 && <span className="text-amber-600">· {result.failed} skipped</span>}
+          </div>
+          {result.errors.length > 0 && (
+            <ul className="max-h-40 space-y-0.5 overflow-y-auto text-xs text-muted-foreground">
+              {result.errors.map((e, i) => (
+                <li key={i}>
+                  Row {e.row}: {e.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <table className="w-full">

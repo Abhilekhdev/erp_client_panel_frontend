@@ -28,6 +28,8 @@ export interface UserDetail {
   allowLogin: boolean;
   isActive: boolean;
   roleId: number | null;
+  /** The business owner (created at registration). Their Super Admin role is fixed. */
+  isOwner: boolean;
   isCmmsnAgnt: boolean;
   cmmsnPercent: number;
   maxSalesDiscountPercent: number | null;

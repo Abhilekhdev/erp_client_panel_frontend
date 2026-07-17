@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -82,6 +82,32 @@ const EMPTY: FormState = {
 };
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+/** Today as YYYY-MM-DD — used to cap the DOB picker so no future date can be chosen. */
+const TODAY_STR = new Date().toISOString().slice(0, 10);
+
+/** Strong-password rule (mirrors the backend DTO): ≥8 chars, a letter, a number and a special char. */
+function validatePassword(pw: string): string | null {
+  if (pw.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Za-z]/.test(pw)) return 'Password must include at least one letter';
+  if (!/\d/.test(pw)) return 'Password must include at least one number';
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include at least one special character (e.g. !@#$%)';
+  return null;
+}
+
+/** A real calendar date with a 4-digit year in [1900, today]. Blocks the native input's 5-digit-year quirk. */
+function validateDob(dob: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+  if (!m) return 'Enter a valid date of birth (4-digit year).';
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  const isRealDate = dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+  if (!isRealDate || y < 1900) return 'Enter a valid date of birth (4-digit year).';
+  if (dt.getTime() > Date.now()) return 'Date of birth cannot be in the future.';
+  return null;
+}
 
 // meta lists are `{id, name}` (IdName); MultiSelect wants `{value, label}`.
 const toOptions = (items: { id: number; name: string }[]) =>
@@ -233,6 +259,7 @@ export function UserFormPage() {
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
@@ -244,6 +271,9 @@ export function UserFormPage() {
     () => (meta?.managers ?? []).filter((m) => m.id !== userId),
     [meta, userId],
   );
+
+  /** The business owner's Super Admin role is fixed — show it read-only instead of a role picker. */
+  const isOwnerAccount = Boolean(isEdit && user?.isOwner);
 
   const save = useMutation({
     mutationFn: () => {
@@ -263,8 +293,14 @@ export function UserFormPage() {
     if (!form.roleId) return setError('Please select a role');
     if (form.allowLogin && !isEdit && !form.password)
       return setError('Password is required when login is enabled');
-    if (form.password && form.password.length < 8)
-      return setError('Password must be at least 8 characters');
+    if (form.password) {
+      const pwError = validatePassword(form.password);
+      if (pwError) return setError(pwError);
+    }
+    if (form.dob) {
+      const dobError = validateDob(form.dob);
+      if (dobError) return setError(dobError);
+    }
     setError('');
     save.mutate();
   };
@@ -323,14 +359,33 @@ export function UserFormPage() {
             disabled={!form.allowLogin}
           />
         </Field>
-        <Field label="Password">
-          <Input
-            type="password"
-            value={form.password}
-            onChange={(e) => set('password', e.target.value)}
-            placeholder={isEdit ? 'Leave blank to keep current' : 'At least 8 characters'}
-            disabled={!form.allowLogin}
-          />
+        <Field label="Password" required={!isEdit && form.allowLogin}>
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              placeholder={isEdit ? 'Leave blank to keep current' : 'Min 8 chars, incl. a number & special char'}
+              disabled={!form.allowLogin}
+              autoComplete="new-password"
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              disabled={!form.allowLogin}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {form.allowLogin && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              At least 8 characters with a letter, a number and a special character (e.g. !@#$%).
+              {isEdit && ' Leave blank to keep the current password.'}
+            </p>
+          )}
         </Field>
         <div className="flex items-center gap-6 pt-1 sm:col-span-2 lg:col-span-3">
           <Toggle checked={form.allowLogin} onChange={(v) => set('allowLogin', v)} label="Allow login" />
@@ -340,22 +395,35 @@ export function UserFormPage() {
 
       {/* Role & locations */}
       <Section title="Role & access" description="One role per user, plus the locations they can work in.">
-        <Field label="Role" required htmlFor="role">
-          <Select id="role" value={form.roleId} onChange={(e) => set('roleId', e.target.value)}>
-            <option value="">Select a role…</option>
-            {meta.roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </Select>
-          {meta.roles.length === 0 && (
-            <p className="mt-1.5 text-xs text-amber-600">
-              No roles yet — create one under <Link to="/roles/create" className="font-medium underline">Roles → Add Role</Link>.
-              The <strong>Admin</strong> role is reserved for the business owner and can't be assigned.
+        {/* The owner IS the Super Admin — that pairing is set at registration, so it is shown read-only. */}
+        {isOwnerAccount ? (
+          <Field label="Role">
+            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              {meta.roles.find((r) => String(r.id) === form.roleId)?.name ?? 'Super Admin'}
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              This is the business owner account — its role is fixed and can’t be changed.
             </p>
-          )}
-        </Field>
+          </Field>
+        ) : (
+          <Field label="Role" required htmlFor="role">
+            <Select id="role" value={form.roleId} onChange={(e) => set('roleId', e.target.value)}>
+              <option value="">Select a role…</option>
+              {meta.roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </Select>
+            {meta.roles.length === 0 && (
+              <p className="mt-1.5 text-xs text-amber-600">
+                No roles yet — create one under <Link to="/roles/create" className="font-medium underline">Roles → Add Role</Link>.
+                The <strong>Super Admin</strong> role is reserved for the business owner and can't be assigned.
+              </p>
+            )}
+          </Field>
+        )}
         <Field label="Locations" className="sm:col-span-2 lg:col-span-2">
           <Toggle
             checked={form.accessAllLocations}
@@ -514,7 +582,13 @@ export function UserFormPage() {
       {/* Personal */}
       <Section title="Personal details">
         <Field label="Date of birth">
-          <Input type="date" value={form.dob} onChange={(e) => set('dob', e.target.value)} />
+          <Input
+            type="date"
+            value={form.dob}
+            onChange={(e) => set('dob', e.target.value)}
+            min="1900-01-01"
+            max={TODAY_STR}
+          />
         </Field>
         <Field label="Gender">
           <Select value={form.gender} onChange={(e) => set('gender', e.target.value)}>
