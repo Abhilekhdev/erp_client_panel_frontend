@@ -1,11 +1,17 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Download, Mail, Printer } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Mail, Printer, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getApiErrorMessage } from '@/lib/api/axios';
-import { downloadPayslipPdf, getPayslip, money, sendPayslipEmail } from '../payroll.api';
+import {
+  deletePayrollPayment,
+  downloadPayslipPdf,
+  getPayslip,
+  money,
+  sendPayslipEmail,
+} from '../payroll.api';
 
 /**
  * Printable payslip — the port of GOURI's `essentials::payroll.slip` blade.
@@ -22,6 +28,7 @@ export function PayslipModal({
   onClose: () => void;
   payrollId: number | null;
 }) {
+  const qc = useQueryClient();
   const [banner, setBanner] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const { data: slip, isLoading } = useQuery({
@@ -39,6 +46,20 @@ export function PayslipModal({
     mutationFn: () => sendPayslipEmail(payrollId as number),
     onSuccess: (r) => setBanner({ ok: true, msg: r.msg }),
     onError: (e) => setBanner({ ok: false, msg: getApiErrorMessage(e, 'Could not send email') }),
+  });
+
+  // Deleting a payment re-derives both the payslip and the parent group status server-side,
+  // so refresh the lists that render those badges alongside the slip itself.
+  const removePayment = useMutation({
+    mutationFn: (id: number) => deletePayrollPayment(id),
+    onSuccess: () => {
+      setBanner({ ok: true, msg: 'Payment deleted' });
+      qc.invalidateQueries({ queryKey: ['payslip', payrollId] });
+      qc.invalidateQueries({ queryKey: ['payrolls'] });
+      qc.invalidateQueries({ queryKey: ['payroll-groups'] });
+      qc.invalidateQueries({ queryKey: ['payroll-group'] });
+    },
+    onError: (e) => setBanner({ ok: false, msg: getApiErrorMessage(e, 'Could not delete payment') }),
   });
 
   const cur = slip?.business.currencySymbol ?? '';
@@ -187,6 +208,7 @@ export function PayslipModal({
                       <th className="px-3 py-2 text-left font-medium">Date</th>
                       <th className="px-3 py-2 text-left font-medium">Method</th>
                       <th className="px-3 py-2 text-right font-medium">Amount</th>
+                      <th className="w-10 px-3 py-2 print:hidden" />
                     </tr>
                   </thead>
                   <tbody>
@@ -197,6 +219,21 @@ export function PayslipModal({
                         <td className="px-3 py-2 capitalize">{p.method.replace(/_/g, ' ')}</td>
                         <td className="px-3 py-2 text-right font-mono">
                           {cur} {money(p.amount)}
+                        </td>
+                        <td className="px-3 py-2 print:hidden">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            isLoading={removePayment.isPending && removePayment.variables === p.id}
+                            onClick={() =>
+                              window.confirm(
+                                `Delete this payment of ${cur} ${money(p.amount)}? The payment status will be recalculated.`,
+                              ) && removePayment.mutate(p.id)
+                            }
+                            title="Delete payment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
