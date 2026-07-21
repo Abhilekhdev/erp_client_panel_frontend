@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { getUser, getUserMeta } from '../users.api';
 import type { UserDetail, UserMeta } from '../users.types';
@@ -330,7 +331,7 @@ export function UserViewPage() {
               <Row
                 icon={Wallet}
                 label="Salary"
-                value={user.essentialsSalary != null ? user.essentialsSalary.toLocaleString() : null}
+                value={user.essentialsSalary != null ? formatMoney(user.essentialsSalary) : null}
               />
               <Row icon={CalendarDays} label="Pay period" value={user.essentialsPayPeriod} />
             </Section>

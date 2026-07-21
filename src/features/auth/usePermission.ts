@@ -6,7 +6,6 @@ import { useAppSelector } from '@/app/hooks';
  */
 export function usePermissions() {
   const user = useAppSelector((s) => s.auth.user);
-
   const has = (permission: string): boolean => {
     if (!user) return false;
     if (user.isBusinessAdmin) return true;

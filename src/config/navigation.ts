@@ -139,6 +139,8 @@ export const NAVIGATION: NavEntry[] = [
       { label: 'All Products', to: '/products', icon: List, permission: 'product.view' },
       { label: 'Add Product', to: '/products/create', icon: PlusCircle, permission: 'product.create' },
       { label: 'Print Labels', to: '/labels', icon: ScanLine, permission: 'product.view' },
+      // The sticker geometry Print Labels prints onto (GOURI's /barcodes screen).
+      { label: 'Label Sheets', to: '/settings/label-sheets', icon: Printer, permission: 'barcode_settings.access' },
       { label: 'Variations', to: '/variations', icon: Layers, permission: 'product.create' },
       { label: 'Import Products', to: '/products/import', icon: Upload, permission: 'product.create' },
       { label: 'Import Opening Stock', to: '/opening-stock/import', icon: Warehouse, permission: 'product.opening_stock' },

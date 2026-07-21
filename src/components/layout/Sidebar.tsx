@@ -1,9 +1,33 @@
 import { ChevronDown } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAVIGATION, type NavEntry } from '@/config/navigation';
 import { usePermissions } from '@/features/auth/usePermission';
 import { cn } from '@/lib/utils';
+
+/**
+ * Resolve which single nav destination is "active" — the MOST SPECIFIC match wins.
+ * NavLink's default prefix matching would light up both `/products` and `/products/create`
+ * when on the latter; picking the longest matching `to` keeps exactly one item highlighted,
+ * while still highlighting the list item on unlisted detail routes (e.g. /products/12/edit).
+ */
+function useActivePath(): string | null {
+  const { pathname } = useLocation();
+  return useMemo(() => {
+    const all: string[] = [];
+    NAVIGATION.forEach((e) => {
+      if (e.to) all.push(e.to);
+      e.children?.forEach((c) => all.push(c.to));
+    });
+
+    let best: string | null = null;
+    for (const to of all) {
+      const matches = pathname === to || (to !== '/' && pathname.startsWith(`${to}/`));
+      if (matches && (!best || to.length > best.length)) best = to;
+    }
+    return best;
+  }, [pathname]);
+}
 
 function useVisibleNav(): NavEntry[] {
   const { has, hasAny } = usePermissions();
@@ -34,11 +58,16 @@ const itemActive = 'bg-primary/10 text-primary';
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const nav = useVisibleNav();
-  const { pathname } = useLocation();
+  const activePath = useActivePath();
 
-  const activeGroup = nav.find((e) => e.children?.some((c) => c.to === pathname))?.label;
+  const activeGroup = nav.find((e) => e.children?.some((c) => c.to === activePath))?.label;
   const [open, setOpen] = useState<Record<string, boolean>>(activeGroup ? { [activeGroup]: true } : {});
   const toggle = (label: string) => setOpen((o) => ({ ...o, [label]: !o[label] }));
+
+  // Keep the group holding the current route expanded as you navigate.
+  useEffect(() => {
+    if (activeGroup) setOpen((o) => (o[activeGroup] ? o : { ...o, [activeGroup]: true }));
+  }, [activeGroup]);
 
   const main = nav.filter((e) => (e.section ?? 'main') === 'main');
   const setup = nav.filter((e) => e.section === 'setup');
@@ -47,26 +76,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     const Icon = entry.icon;
 
     if (!entry.children) {
+      const isActive = entry.to === activePath;
       return (
         <NavLink
           key={entry.label}
           to={entry.to ?? '/'}
-          end={entry.to === '/'}
           onClick={onNavigate}
-          className={({ isActive }) => cn(itemBase, isActive ? itemActive : itemIdle)}
+          className={cn(itemBase, isActive ? itemActive : itemIdle)}
         >
-          {({ isActive }) => (
-            <>
-              <Icon className={cn('h-[18px] w-[18px]', isActive ? 'text-primary' : 'text-muted-foreground')} />
-              {entry.label}
-            </>
-          )}
+          <Icon className={cn('h-[18px] w-[18px]', isActive ? 'text-primary' : 'text-muted-foreground')} />
+          {entry.label}
         </NavLink>
       );
     }
 
     const isOpen = Boolean(open[entry.label]);
-    const groupActive = entry.children.some((c) => c.to === pathname);
+    const groupActive = entry.children.some((c) => c.to === activePath);
     return (
       <div key={entry.label}>
         <button
@@ -85,19 +110,18 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="mb-1 ml-4 mt-0.5 space-y-0.5 border-l border-border pl-3.5">
             {entry.children.map((child) => {
               const ChildIcon = child.icon;
+              const childActive = child.to === activePath;
               return (
                 <NavLink
                   key={child.to}
                   to={child.to}
                   onClick={onNavigate}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors',
-                      isActive
-                        ? 'bg-primary/10 font-medium text-primary'
-                        : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground',
-                    )
-                  }
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors',
+                    childActive
+                      ? 'bg-primary/10 font-medium text-primary'
+                      : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground',
+                  )}
                 >
                   <ChildIcon className="h-4 w-4" />
                   {child.label}

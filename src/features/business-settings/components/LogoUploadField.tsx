@@ -5,16 +5,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { fileUrl as resolveUrl } from '@/lib/fileUrl';
 import { uploadBusinessLogo } from '../business-settings.api';
-
-/** Uploads are served by the API at /uploads (outside the /api prefix). */
-const UPLOADS_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
-
-function resolveUrl(path: string | null): string | null {
-  if (!path) return null;
-  if (path.startsWith('http') || path.startsWith('blob:')) return path;
-  return `${UPLOADS_BASE}/uploads/${path}`;
-}
 
 export function LogoUploadField({
   type,

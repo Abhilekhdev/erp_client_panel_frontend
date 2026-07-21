@@ -94,6 +94,14 @@ function humanizeField(key: string): string {
  */
 export function getApiErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
   if (axios.isAxiosError(error)) {
+    // 413 bodies are produced by the proxy/server, not our API, so they carry no `error.message`
+    // and would otherwise surface as a bare "Request failed with status code 413".
+    if (error.response?.status === 413) {
+      return 'That file is too large to upload. Please upload a file under 5 MB.';
+    }
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
     const data = error.response?.data as
       | { error?: { message?: string; details?: unknown } }
       | undefined;

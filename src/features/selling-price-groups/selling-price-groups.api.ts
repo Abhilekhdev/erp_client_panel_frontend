@@ -37,3 +37,35 @@ export async function toggleSellingPriceGroup(id: number, isActive: boolean): Pr
 export async function deleteSellingPriceGroup(id: number): Promise<void> {
   await api.delete(`/selling-price-groups/${id}`);
 }
+
+/** The whole price list as a workbook — one row per variation, one column per active group. */
+export async function exportGroupPrices(): Promise<void> {
+  const res = await api.get('/selling-price-groups/export', { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'product_group_prices.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export interface GroupPriceImportResult {
+  imported: number;
+  rows: number;
+  /** How many individual prices were written. */
+  updated: number;
+  errors: { row: number; message: string }[];
+  /** Headers that matched no price group — usually a renamed group. */
+  unknownColumns: string[];
+  groups: string[];
+}
+
+export async function importGroupPrices(file: File): Promise<GroupPriceImportResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<{ success: boolean; data: GroupPriceImportResult }>(
+    '/selling-price-groups/import',
+    form,
+  );
+  return data.data;
+}

@@ -15,8 +15,18 @@ export interface ProductListRow {
   enableStock: boolean;
   isInactive: boolean;
   notForSelling: boolean;
-  priceMin: number;
-  priceMax: number;
+  /** null when the caller lacks `access_default_selling_price` — hide the column, don't show 0. */
+  priceMin: number | null;
+  priceMax: number | null;
+  /** null when the caller lacks `view_purchase_price`. */
+  purchasePriceMin: number | null;
+  purchasePriceMax: number | null;
+  /** Names of the business locations this product is sold at. */
+  locations: string[];
+  customField1: string;
+  customField2: string;
+  customField3: string;
+  customField4: string;
 }
 
 export interface ProductGroupPrice {
@@ -67,7 +77,31 @@ export interface ProductDetail {
   warrantyId: number | null;
   isInactive: boolean;
   notForSelling: boolean;
+  preparationTimeInMinutes: number | null;
+  image: string;
+  productLocations: number[];
+  /** Keyed by location id. */
+  productRacks: Record<string, { rack: string; row: string; position: string }>;
+  productCustomField1: string;
+  productCustomField2: string;
+  productCustomField3: string;
+  productCustomField4: string;
   productVariations: ProductVariationGroup[];
+}
+
+/** Business settings that decide which sections of the product form even render (GOURI parity). */
+export interface ProductFormSettings {
+  enableBrand: boolean;
+  enableCategory: boolean;
+  enableSubCategory: boolean;
+  enablePriceTax: boolean;
+  enableSubUnits: boolean;
+  enableRacks: boolean;
+  enableRow: boolean;
+  enablePosition: boolean;
+  enableProductExpiry: boolean;
+  defaultProfitPercent: number;
+  defaultUnitId: number | null;
 }
 
 export interface IdName {
@@ -83,6 +117,8 @@ export interface ProductMeta {
   priceGroups: IdName[];
   variationTemplates: { id: number; name: string; values: string[] }[];
   barcodeTypes: string[];
+  locations: IdName[];
+  settings: ProductFormSettings;
 }
 
 // Body shapes (snake_case → matches the backend DTO)
@@ -110,6 +146,20 @@ export interface SaveProductBody {
   warranty_id?: number | null;
   not_for_selling: boolean;
   product_description?: string;
+  secondary_unit_id?: number | null;
+  sub_unit_ids?: number[];
+  expiry_period?: number | null;
+  expiry_period_type?: 'days' | 'months';
+  enable_sr_no?: boolean;
+  weight?: string;
+  product_custom_field1?: string;
+  product_custom_field2?: string;
+  product_custom_field3?: string;
+  product_custom_field4?: string;
+  preparation_time_in_minutes?: number | null;
+  image?: string;
+  product_locations?: number[];
+  product_racks?: Record<string, { rack?: string; row?: string; position?: string }>;
   single?: PriceLineBody;
   variations?: { variation_template_id?: number | null; name: string; values: (PriceLineBody & { value: string; sub_sku?: string })[] }[];
   combo?: PriceLineBody & { composition: { variation_id: number; quantity: number; unit_id?: number | null }[] };
@@ -130,11 +180,63 @@ export interface ProductFilters {
   search: string;
   categoryId?: number | '';
   brandId?: number | '';
+  unitId?: number | '';
+  taxId?: number | '';
+  /** A location id, or 'none' to find products assigned to no location at all. */
+  locationId?: number | 'none' | '';
   type?: string;
+  /** '' = any, true = active only, false = inactive only. */
+  active?: boolean | '';
+  notForSelling?: boolean | '';
 }
 
-export async function listProducts(params: ProductFilters): Promise<Paginated<ProductListRow>> {
-  const { data } = await api.get<Envelope<Paginated<ProductListRow>>>('/products', { params });
+/** The list also reports which price columns the caller is allowed to see. */
+export interface ProductListResult extends Paginated<ProductListRow> {
+  can: { viewPurchasePrice: boolean; viewSellingPrice: boolean };
+}
+
+export async function listProducts(params: ProductFilters): Promise<ProductListResult> {
+  const { data } = await api.get<Envelope<ProductListResult>>('/products', { params });
+  return data.data;
+}
+
+// ── attachments (brochure / variation images) ─────────
+export interface ProductMediaFile {
+  id: number;
+  kind: string | null;
+  path: string;
+  url: string;
+  fileName: string;
+  mimeType: string | null;
+  fileSize: number | null;
+}
+
+export async function listProductMedia(productId: number): Promise<ProductMediaFile[]> {
+  const { data } = await api.get<Envelope<{ data: ProductMediaFile[] }>>(`/products/${productId}/media`);
+  return data.data.data;
+}
+
+export async function uploadProductMedia(
+  productId: number,
+  file: File,
+  kind: 'product_brochure' | 'variation_image',
+): Promise<ProductMediaFile> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('kind', kind);
+  const { data } = await api.post<Envelope<ProductMediaFile>>(`/products/${productId}/media`, form);
+  return data.data;
+}
+
+export async function deleteProductMedia(mediaId: number): Promise<void> {
+  await api.delete(`/products/media/${mediaId}`);
+}
+
+/** Upload first, then submit the returned path as the product's `image`. */
+export async function uploadProductImage(file: File): Promise<{ path: string; url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<Envelope<{ path: string; url: string }>>('/products/image', form);
   return data.data;
 }
 export async function getProductMeta(): Promise<ProductMeta> {
@@ -178,4 +280,45 @@ export async function toggleProduct(id: number, isActive: boolean): Promise<Prod
 }
 export async function deleteProduct(id: number): Promise<void> {
   await api.delete(`/products/${id}`);
+}
+
+// ── mass actions ──────────────────────────────────────
+// These return `{success, count, msg}` un-enveloped — the interceptor passes through any object
+// that already carries `success` (same convention as the single-row delete).
+interface MassResult {
+  success: boolean;
+  count: number;
+  msg: string;
+}
+
+export async function massDeleteProducts(ids: number[]): Promise<MassResult> {
+  const { data } = await api.post<MassResult>('/products/mass-delete', { ids });
+  return data;
+}
+export async function massSetProductsActive(ids: number[], active: boolean): Promise<MassResult> {
+  const { data } = await api.post<MassResult>('/products/mass-activate', { ids, active });
+  return data;
+}
+export async function massUpdateProductLocations(
+  ids: number[],
+  locationIds: number[],
+  mode: 'add' | 'remove',
+): Promise<MassResult> {
+  const { data } = await api.post<MassResult>('/products/mass-locations', {
+    ids,
+    location_ids: locationIds,
+    mode,
+  });
+  return data;
+}
+
+/** Downloads the CURRENT filter set as .xlsx (not just the visible page). */
+export async function exportProducts(params: Omit<ProductFilters, 'page' | 'pageSize'>): Promise<void> {
+  const res = await api.get('/products/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `products-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

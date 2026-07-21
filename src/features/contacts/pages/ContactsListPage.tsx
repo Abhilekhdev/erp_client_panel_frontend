@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { formatMoney } from '@/lib/currency';
 import {
   deleteContact,
   getContactMeta,
@@ -110,7 +111,7 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
         header: 'Credit Limit',
         className: 'text-right tabular-nums',
         headerClassName: 'text-right',
-        render: (c) => (c.creditLimit == null ? 'No limit' : c.creditLimit.toLocaleString()),
+        render: (c) => (c.creditLimit == null ? 'No limit' : formatMoney(c.creditLimit)),
       },
     ];
 
@@ -129,7 +130,7 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
         header: 'Advance',
         className: 'text-right tabular-nums',
         headerClassName: 'text-right',
-        render: (c) => c.advanceBalance.toLocaleString(),
+        render: (c) => formatMoney(c.advanceBalance),
       },
       {
         key: 'due',

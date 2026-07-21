@@ -1,4 +1,6 @@
-import { Bell, ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { HeaderShortcuts } from '@/components/layout/HeaderShortcuts';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -60,16 +62,14 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* GOURI header shortcut strip: clock in/out · quick add · calculator · POS · profit · date */}
+            <HeaderShortcuts />
+
+            <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
+
             <ThemeToggle />
 
-            <button
-              type="button"
-              className="relative grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
-            </button>
+            <NotificationBell />
 
             {/* User dropdown */}
             <div className="relative" ref={menuRef}>

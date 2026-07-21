@@ -1,4 +1,5 @@
 import { api } from '@/lib/api/axios';
+import { formatMoney } from '@/lib/currency';
 
 export interface IdName {
   id: number;
@@ -351,7 +352,8 @@ export async function deletePayComponent(id: number): Promise<void> {
   await api.delete(`/hrm/pay-components/${id}`);
 }
 
-/** Format a money amount with 2 decimals + thousands separators (no currency symbol). */
-export function money(n: number): string {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+/**
+ * Format a money amount using the business currency (symbol + placement from Business Settings).
+ * Re-exported from `lib/currency` so every existing call site picks the tenant symbol up automatically.
+ */
+export const money = formatMoney;

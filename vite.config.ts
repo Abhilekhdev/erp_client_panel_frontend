@@ -17,6 +17,13 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
+      // Uploaded files live outside the /api prefix. Without this, <img src="/uploads/...">
+      // would hit the Vite dev server instead of the API and render as a broken image.
+      // In S3 mode the backend answers with a 302 to a presigned URL, which the browser follows.
+      '/uploads': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
     },
   },
 });

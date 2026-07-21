@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, Coins, LogOut, Target, UserCheck, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatMoney } from '@/lib/currency';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,11 +60,11 @@ export function HrmDashboardPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-sm font-semibold">Target achieved last month:</p>
-                <p className="text-lg font-semibold text-emerald-600">$0.00</p>
+                <p className="text-lg font-semibold text-emerald-600">{formatMoney(0)}</p>
               </div>
               <div>
                 <p className="text-sm font-semibold">Target achieved this month:</p>
-                <p className="text-lg font-semibold text-emerald-600">$0.00</p>
+                <p className="text-lg font-semibold text-emerald-600">{formatMoney(0)}</p>
               </div>
             </div>
             <table className="w-full">

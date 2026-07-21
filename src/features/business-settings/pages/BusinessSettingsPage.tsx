@@ -5,6 +5,10 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppDispatch } from '@/app/hooks';
+import { useToast } from '@/components/ui/toast';
+import { meRequest } from '@/features/auth/auth.api';
+import { setUser } from '@/features/auth/authSlice';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import { getBusinessSettings, updateBusinessSettings } from '../business-settings.api';
 import { buildDefaults, toPayload } from '../business-settings.mapping';
@@ -13,6 +17,8 @@ import { SETTINGS_TABS } from '../components/tabs';
 
 export function BusinessSettingsPage() {
   const qc = useQueryClient();
+  const dispatch = useAppDispatch();
+  const toast = useToast();
   const { data, isLoading } = useQuery({
     queryKey: ['business-settings'],
     queryFn: getBusinessSettings,
@@ -29,11 +35,23 @@ export function BusinessSettingsPage() {
 
   const save = useMutation({
     mutationFn: (values: SettingsFormValues) => updateBusinessSettings(toPayload(values)),
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ['business-settings'] });
+      // The currency lives on the auth payload (it drives every money symbol in the app), so refresh
+      // the session user — otherwise the UI keeps rendering the old symbol until the next login.
+      try {
+        dispatch(setUser(await meRequest()));
+      } catch {
+        /* settings still saved — the symbol refreshes on next load */
+      }
       setBanner({ type: 'success', msg: 'Business settings saved successfully.' });
+      toast.success('Business settings saved successfully');
     },
-    onError: (e) => setBanner({ type: 'error', msg: getApiErrorMessage(e, 'Could not save settings') }),
+    onError: (e) => {
+      const msg = getApiErrorMessage(e, 'Could not save settings');
+      setBanner({ type: 'error', msg });
+      toast.error(msg);
+    },
   });
 
   const onSubmit = methods.handleSubmit(

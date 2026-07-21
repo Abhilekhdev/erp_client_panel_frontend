@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import {
   downloadTemplate,
@@ -58,8 +59,13 @@ function IssueList({ issues, tone }: { issues: ImportIssue[]; tone: 'error' | 'w
  * anything is written, and **every** bad row listed at once (GOURI aborts on the first, so a file
  * with 50 problems takes 50 uploads to discover them all).
  */
+/** Mirrors the server-side cap in ContactsImportService — checked here to avoid a pointless 413. */
+const MAX_UPLOAD_MB = 5;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
 export function ContactsImportPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -69,20 +75,33 @@ export function ContactsImportPage() {
 
   const run = useMutation({
     mutationFn: ({ f, dryRun }: { f: File; dryRun: boolean }) => importContacts(f, dryRun),
-    onSuccess: (r) => {
+    onSuccess: (r, vars) => {
       setReport(r);
       setError('');
+      if (r.imported != null) toast.success(`Imported ${r.imported} contact${r.imported === 1 ? '' : 's'} successfully`);
+      else if (r.errors.length) toast.error(`${r.errors.length} problem${r.errors.length === 1 ? '' : 's'} found — nothing was imported`);
+      else if (vars.dryRun) toast.success('File looks good — ready to import');
     },
     onError: (e) => {
       setReport(null);
-      setError(getApiErrorMessage(e));
+      const msg = getApiErrorMessage(e);
+      setError(msg);
+      toast.error(msg);
     },
   });
 
   const pick = (f: File | null) => {
-    setFile(f);
     setReport(null);
     setError('');
+    // Check the size client-side so an oversized file never costs a round-trip (and can't 413).
+    if (f && f.size > MAX_UPLOAD_BYTES) {
+      setFile(null);
+      const msg = `That file is ${(f.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_UPLOAD_MB} MB.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    setFile(f);
   };
 
   const clean = report !== null && report.errors.length === 0;

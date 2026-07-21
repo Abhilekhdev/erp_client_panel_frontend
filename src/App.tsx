@@ -5,6 +5,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { BusinessLocationsPage } from '@/features/business-locations/pages/BusinessLocationsPage';
+import { CalendarPage } from '@/features/calendar/pages/CalendarPage';
 import { BusinessSettingsPage } from '@/features/business-settings/pages/BusinessSettingsPage';
 import { ContactFormPage } from '@/features/contacts/pages/ContactFormPage';
 import { ContactsListPage } from '@/features/contacts/pages/ContactsListPage';
@@ -14,6 +15,7 @@ import { CustomerGroupsPage } from '@/features/customer-groups/pages/CustomerGro
 import { ActivityLogPage } from '@/features/activity-log/pages/ActivityLogPage';
 import { ContactsImportPage } from '@/features/contacts/pages/ContactsImportPage';
 import { LabelsPage } from '@/features/labels/pages/LabelsPage';
+import { LabelSheetsPage } from '@/features/labels/pages/LabelSheetsPage';
 import { InvoiceSettingsPage } from '@/features/invoice-schemes/pages/InvoiceSettingsPage';
 import { CommissionAgentFormPage } from '@/features/commission-agents/pages/CommissionAgentFormPage';
 import { CommissionAgentsListPage } from '@/features/commission-agents/pages/CommissionAgentsListPage';
@@ -59,6 +61,7 @@ const CUSTOM_ROUTES = new Set([
   '/products',
   '/products/create',
   '/labels',
+  '/settings/label-sheets',
   '/reports/activity-log',
   '/units',
   '/categories',
@@ -71,6 +74,7 @@ const CUSTOM_ROUTES = new Set([
   '/settings/locations',
   '/settings/invoice',
   '/notification-templates',
+  '/calendar',
   '/hrm',
   '/hrm/departments',
   '/hrm/designations',
@@ -144,6 +148,7 @@ export function App() {
             <Route path="/products/create" element={<ProductFormPage />} />
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
             <Route path="/labels" element={<LabelsPage />} />
+            <Route path="/settings/label-sheets" element={<LabelSheetsPage />} />
 
             {/* Reports */}
             <Route path="/reports/activity-log" element={<ActivityLogPage />} />
@@ -165,6 +170,9 @@ export function App() {
 
             {/* Invoice Settings (Invoice Schemes) — real module */}
             <Route path="/settings/invoice" element={<InvoiceSettingsPage />} />
+
+            {/* Calendar — real module (header quick-add target) */}
+            <Route path="/calendar" element={<CalendarPage />} />
 
             {/* Notification Templates — real module */}
             <Route path="/notification-templates" element={<NotificationTemplatesPage />} />

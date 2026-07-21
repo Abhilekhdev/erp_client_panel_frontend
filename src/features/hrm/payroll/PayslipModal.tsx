@@ -62,7 +62,6 @@ export function PayslipModal({
     onError: (e) => setBanner({ ok: false, msg: getApiErrorMessage(e, 'Could not delete payment') }),
   });
 
-  const cur = slip?.business.currencySymbol ?? '';
   const bank = (slip?.employee.bankDetails ?? {}) as Record<string, string>;
   const hasBank = Object.values(bank).some((v) => v);
 
@@ -152,14 +151,14 @@ export function PayslipModal({
                 <tr className="border-b">
                   <td className="px-3 py-2">Basic salary</td>
                   <td className="px-3 py-2 text-right font-mono">
-                    {cur} {money(slip.basicSalary)}
+                    {money(slip.basicSalary)}
                   </td>
                 </tr>
                 {slip.allowances.map((a, i) => (
                   <tr key={`a${i}`} className="border-b">
                     <td className="px-3 py-2">{a.description}</td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {cur} {money(a.amount)}
+                      {money(a.amount)}
                     </td>
                   </tr>
                 ))}
@@ -173,14 +172,14 @@ export function PayslipModal({
                   <tr key={`d${i}`} className="border-b">
                     <td className="px-3 py-2">{d.description}</td>
                     <td className="px-3 py-2 text-right font-mono text-destructive">
-                      − {cur} {money(d.amount)}
+                      − {money(d.amount)}
                     </td>
                   </tr>
                 ))}
                 <tr className="bg-primary/5">
                   <td className="px-3 py-2.5 font-semibold">Net payable</td>
                   <td className="px-3 py-2.5 text-right font-mono font-semibold">
-                    {cur} {money(slip.finalTotal)}
+                    {money(slip.finalTotal)}
                   </td>
                 </tr>
               </tbody>
@@ -189,10 +188,10 @@ export function PayslipModal({
 
           {/* Payments */}
           <div className="mb-4 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
-            <Row label="Paid" value={`${cur} ${money(slip.totalPaid)}`} />
-            <Row label="Due" value={`${cur} ${money(slip.totalDue)}`} />
+            <Row label="Paid" value={`${money(slip.totalPaid)}`} />
+            <Row label="Due" value={`${money(slip.totalDue)}`} />
             <Row label="Payment status" value={slip.paymentStatus} />
-            <Row label="YTD payroll" value={`${cur} ${money(slip.ytdPayroll)}`} />
+            <Row label="YTD payroll" value={`${money(slip.ytdPayroll)}`} />
           </div>
 
           {slip.payments.length > 0 && (
@@ -218,7 +217,7 @@ export function PayslipModal({
                         <td className="px-3 py-2">{new Date(p.paidOn).toLocaleDateString()}</td>
                         <td className="px-3 py-2 capitalize">{p.method.replace(/_/g, ' ')}</td>
                         <td className="px-3 py-2 text-right font-mono">
-                          {cur} {money(p.amount)}
+                          {money(p.amount)}
                         </td>
                         <td className="px-3 py-2 print:hidden">
                           <Button
@@ -227,7 +226,7 @@ export function PayslipModal({
                             isLoading={removePayment.isPending && removePayment.variables === p.id}
                             onClick={() =>
                               window.confirm(
-                                `Delete this payment of ${cur} ${money(p.amount)}? The payment status will be recalculated.`,
+                                `Delete this payment of ${money(p.amount)}? The payment status will be recalculated.`,
                               ) && removePayment.mutate(p.id)
                             }
                             title="Delete payment"

@@ -1,5 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Eye,
+  Layers,
+  MapPin,
+  Package,
+  Pencil,
+  Plus,
+  Power,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/common/DataTable';
@@ -8,19 +20,38 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Modal } from '@/components/ui/modal';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { GroupPricesModal } from '../components/GroupPricesModal';
+import { ProductViewModal } from '../components/ProductViewModal';
 import {
   deleteProduct,
+  exportProducts,
   getProductMeta,
   listProducts,
+  massDeleteProducts,
+  massSetProductsActive,
+  massUpdateProductLocations,
   toggleProduct,
+  type ProductFilters,
   type ProductListRow,
 } from '../products.api';
 
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Variable products span a range; a single price collapses to one number. */
+const priceRange = (min: number | null, max: number | null) => {
+  if (min == null || max == null) return '—';
+  return min === max ? money(max) : `${money(min)} – ${money(max)}`;
+};
 const typeLabel: Record<string, string> = { single: 'Single', variable: 'Variable', combo: 'Combo' };
+
+type BlankFilters = Omit<ProductFilters, 'page' | 'pageSize' | 'search'>;
+const BLANK_FILTERS: BlankFilters = {
+  categoryId: '', brandId: '', unitId: '', taxId: '', locationId: '', type: '', active: '', notForSelling: '',
+};
 
 export function ProductsListPage() {
   const qc = useQueryClient();
@@ -33,14 +64,43 @@ export function ProductsListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ categoryId: '' as number | '', brandId: '' as number | '', type: '' });
+  const [filters, setFilters] = useState<BlankFilters>(BLANK_FILTERS);
+  const [selected, setSelected] = useState<Array<string | number>>([]);
+  const [viewId, setViewId] = useState<number | null>(null);
+  const [groupPricesId, setGroupPricesId] = useState<number | null>(null);
+  const [locationModal, setLocationModal] = useState<null | 'add' | 'remove'>(null);
+  const [locationIds, setLocationIds] = useState<number[]>([]);
 
   const { data: meta } = useQuery({ queryKey: ['product-meta'], queryFn: getProductMeta });
   const { data, isLoading } = useQuery({
     queryKey: ['products', page, pageSize, search, filters],
     queryFn: () => listProducts({ page, pageSize, search, ...filters }),
   });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['products'] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['products'] });
+    setSelected([]); // the ids may no longer exist (or no longer match the filters)
+  };
+  const ids = selected.map(Number);
+
+  const massDelete = useMutation({
+    mutationFn: () => massDeleteProducts(ids),
+    onSuccess: invalidate,
+    onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not delete')),
+  });
+  const massActivate = useMutation({
+    mutationFn: (active: boolean) => massSetProductsActive(ids, active),
+    onSuccess: invalidate,
+    onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not update')),
+  });
+  const massLocations = useMutation({
+    mutationFn: (mode: 'add' | 'remove') => massUpdateProductLocations(ids, locationIds, mode),
+    onSuccess: () => {
+      invalidate();
+      setLocationModal(null);
+      setLocationIds([]);
+    },
+    onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not update locations')),
+  });
 
   const toggle = useMutation({
     mutationFn: (p: ProductListRow) => toggleProduct(p.id, p.isInactive),
@@ -53,16 +113,32 @@ export function ProductsListPage() {
     onError: (e: unknown) => window.alert(getApiErrorMessage(e, 'Could not delete')),
   });
 
-  const set = (k: keyof typeof filters, v: string | number) => {
+  const set = <K extends keyof BlankFilters>(k: K, v: BlankFilters[K]) => {
     setFilters((f) => ({ ...f, [k]: v }));
     setPage(1);
   };
+  const filtersActive = Object.values(filters).some((v) => v !== '');
 
   const columns: Column<ProductListRow>[] = [
+    {
+      key: 'image',
+      header: '',
+      title: 'Image',
+      className: 'w-12',
+      render: (p) =>
+        p.image ? (
+          <img src={`/uploads/${p.image}`} alt="" className="h-9 w-9 rounded border object-cover" />
+        ) : (
+          <div className="grid h-9 w-9 place-items-center rounded border border-dashed text-muted-foreground">
+            <Package className="h-4 w-4" />
+          </div>
+        ),
+    },
     { key: 'sku', header: 'SKU', render: (p) => <span className="font-mono text-xs">{p.sku}</span> },
     {
       key: 'name',
       header: 'Product',
+      hideable: false,
       render: (p) => (
         <div className="flex items-center gap-2">
           <span className="font-medium">{p.name}</span>
@@ -77,48 +153,94 @@ export function ProductsListPage() {
     { key: 'unit', header: 'Unit', render: (p) => p.unit || '—' },
     { key: 'tax', header: 'Tax', render: (p) => (p.tax ? `${p.tax} (${p.taxAmount}%)` : '—') },
     {
-      key: 'price',
-      header: 'Sell price (inc tax)',
-      render: (p) => (p.priceMin === p.priceMax ? money(p.priceMax) : `${money(p.priceMin)} – ${money(p.priceMax)}`),
+      key: 'locations',
+      header: 'Business location',
+      render: (p) =>
+        p.locations.length ? (
+          <span className="text-xs">{p.locations.join(', ')}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Unassigned</span>
+        ),
     },
-    ...(canUpdate || canDelete
+    ...([1, 2, 3, 4] as const).map((n) => ({
+      key: `customField${n}`,
+      header: `Custom field ${n}`,
+      // Off by default via the column picker — most businesses label only the ones they use.
+      render: (p: ProductListRow) => p[`customField${n}` as const] || '—',
+    })),
+    // GOURI hides each price column behind its own permission, so a user without it must not see
+    // the column at all — the backend already sends null, this just drops the header too.
+    ...(data?.can?.viewPurchasePrice
       ? [
           {
-            key: 'actions',
-            header: 'Action',
-            headerClassName: 'text-right',
-            className: 'text-right',
-            render: (p: ProductListRow) => (
-              <div className="flex justify-end gap-2">
-                {canUpdate && (
-                  <>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/products/${p.id}/edit`)} title="Edit">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggle.mutate(p)}
-                      title={p.isInactive ? 'Activate' : 'Deactivate'}
-                    >
-                      <Power className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {canDelete && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ),
-          } as Column<ProductListRow>,
+            key: 'purchasePrice',
+            header: 'Purchase price',
+            render: (p: ProductListRow) => priceRange(p.purchasePriceMin, p.purchasePriceMax),
+          },
         ]
       : []),
+    ...(data?.can?.viewSellingPrice
+      ? [
+          {
+            key: 'price',
+            header: 'Sell price (inc tax)',
+            render: (p: ProductListRow) => priceRange(p.priceMin, p.priceMax),
+          },
+        ]
+      : []),
+    {
+      key: 'actions',
+      header: 'Action',
+      hideable: false,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (p: ProductListRow) => (
+        <div className="flex justify-end gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setViewId(p.id)} title="View">
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/labels?productId=${p.id}`)} title="Print labels">
+            <Tag className="h-4 w-4" />
+          </Button>
+          {canUpdate && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/products/${p.id}/edit`)} title="Edit">
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggle.mutate(p)}
+                title={p.isInactive ? 'Activate' : 'Deactivate'}
+              >
+                <Power className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          {canUpdate && (
+            <Button variant="outline" size="sm" onClick={() => setGroupPricesId(p.id)} title="Add or edit group prices">
+              <Layers className="h-4 w-4" />
+            </Button>
+          )}
+          {canCreate && (
+            // GOURI's "Duplicate Product" — the create form loads the source and clears its identity.
+            <Button variant="outline" size="sm" onClick={() => navigate(`/products/create?duplicate=${p.id}`)} title="Duplicate">
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id)}
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -127,42 +249,134 @@ export function ProductsListPage() {
         title="Products"
         breadcrumbs={[{ label: 'Products' }, { label: 'All Products' }]}
         actions={
-          canCreate && (
-            <Button size="sm" onClick={() => navigate('/products/create')}>
-              <Plus className="h-4 w-4" />
-              Add Product
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportProducts({ search, ...filters })}>
+              <Download className="h-4 w-4" />
+              Download Excel
             </Button>
-          )
+            {canCreate && (
+              <Button size="sm" onClick={() => navigate('/products/create')}>
+                <Plus className="h-4 w-4" />
+                Add Product
+              </Button>
+            )}
+          </div>
         }
       />
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
           <div className="space-y-1.5">
-            <Label>Category</Label>
-            <Select className="w-44" value={String(filters.categoryId)} onChange={(e) => set('categoryId', e.target.value ? Number(e.target.value) : '')}>
-              <option value="">All</option>
-              {meta?.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Brand</Label>
-            <Select className="w-44" value={String(filters.brandId)} onChange={(e) => set('brandId', e.target.value ? Number(e.target.value) : '')}>
-              <option value="">All</option>
-              {meta?.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <Label>Type</Label>
-            <Select className="w-40" value={filters.type} onChange={(e) => set('type', e.target.value)}>
+            <Select className="w-36" value={filters.type} onChange={(e) => set('type', e.target.value)}>
               <option value="">All</option>
               <option value="single">Single</option>
               <option value="variable">Variable</option>
               <option value="combo">Combo</option>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label>Category</Label>
+            <Select className="w-40" value={String(filters.categoryId)} onChange={(e) => set('categoryId', e.target.value ? Number(e.target.value) : '')}>
+              <option value="">All</option>
+              {meta?.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Brand</Label>
+            <Select className="w-40" value={String(filters.brandId)} onChange={(e) => set('brandId', e.target.value ? Number(e.target.value) : '')}>
+              <option value="">All</option>
+              {meta?.brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Unit</Label>
+            <Select className="w-36" value={String(filters.unitId)} onChange={(e) => set('unitId', e.target.value ? Number(e.target.value) : '')}>
+              <option value="">All</option>
+              {meta?.units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tax</Label>
+            <Select className="w-36" value={String(filters.taxId)} onChange={(e) => set('taxId', e.target.value ? Number(e.target.value) : '')}>
+              <option value="">All</option>
+              {meta?.taxRates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Business location</Label>
+            <Select
+              className="w-44"
+              value={String(filters.locationId)}
+              onChange={(e) => set('locationId', e.target.value === 'none' ? 'none' : e.target.value ? Number(e.target.value) : '')}
+            >
+              <option value="">All</option>
+              {/* GOURI prepends this so you can find products that were never assigned anywhere. */}
+              <option value="none">None (unassigned)</option>
+              {meta?.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select
+              className="w-32"
+              value={filters.active === '' ? '' : filters.active ? 'active' : 'inactive'}
+              onChange={(e) => set('active', e.target.value === '' ? '' : e.target.value === 'active')}
+            >
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </Select>
+          </div>
+          <label className="flex items-center gap-2 pb-2.5 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-input accent-primary"
+              checked={filters.notForSelling === true}
+              onChange={(e) => set('notForSelling', e.target.checked ? true : '')}
+            />
+            Exclude from sales
+          </label>
         </CardContent>
       </Card>
+
+      {/* Mass actions — appear only with a selection, so the toolbar isn't dead weight. */}
+      {selected.length > 0 && (canUpdate || canDelete) && (
+        <Card className="mb-4 border-primary/40 bg-primary/5">
+          <CardContent className="flex flex-wrap items-center gap-2 py-3">
+            <span className="mr-1 text-sm font-medium">{selected.length} selected</span>
+            {canUpdate && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setLocationModal('add')}>
+                  <MapPin className="h-4 w-4" /> Add to location
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setLocationModal('remove')}>
+                  <MapPin className="h-4 w-4" /> Remove from location
+                </Button>
+                <Button variant="outline" size="sm" disabled={massActivate.isPending} onClick={() => massActivate.mutate(false)}>
+                  <Power className="h-4 w-4" /> Deactivate selected
+                </Button>
+                <Button variant="outline" size="sm" disabled={massActivate.isPending} onClick={() => massActivate.mutate(true)}>
+                  <Power className="h-4 w-4" /> Activate selected
+                </Button>
+              </>
+            )}
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={massDelete.isPending}
+                onClick={() => window.confirm(`Delete ${selected.length} product(s)? This cannot be undone.`) && massDelete.mutate()}
+              >
+                <Trash2 className="h-4 w-4" /> Delete selected
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setSelected([])}>
+              Clear
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <DataTable
         columns={columns}
@@ -183,7 +397,49 @@ export function ProductsListPage() {
           setPage(1);
         }}
         searchPlaceholder="Search name / SKU…"
+        selectable={canUpdate || canDelete}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
+        onResetFilters={() => {
+          setFilters(BLANK_FILTERS);
+          setPage(1);
+        }}
+        filtersActive={filtersActive}
+        columnsStorageKey="products"
       />
+
+      <ProductViewModal productId={viewId} onClose={() => setViewId(null)} />
+      <GroupPricesModal productId={groupPricesId} onClose={() => setGroupPricesId(null)} />
+
+      <Modal
+        open={locationModal !== null}
+        onClose={() => setLocationModal(null)}
+        title={locationModal === 'remove' ? 'Remove from locations' : 'Add to locations'}
+        description={`${selected.length} product(s) selected`}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setLocationModal(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={locationIds.length === 0 || massLocations.isPending}
+              onClick={() => massLocations.mutate(locationModal === 'remove' ? 'remove' : 'add')}
+            >
+              {locationModal === 'remove' ? 'Remove' : 'Add'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <Label>Business locations</Label>
+          <MultiSelect
+            options={(meta?.locations ?? []).map((l) => ({ value: l.id, label: l.name }))}
+            value={locationIds}
+            onChange={setLocationIds}
+            placeholder="Select locations…"
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

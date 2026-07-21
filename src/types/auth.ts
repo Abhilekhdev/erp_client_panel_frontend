@@ -5,6 +5,12 @@ export interface AuthBusiness {
   id: number;
   name: string;
   logo?: string | null;
+  /** Tenant currency (from Business Settings) — drives every money symbol in the UI. */
+  currencySymbol?: string;
+  currencyCode?: string;
+  /** 'before' | 'after' — where the symbol sits relative to the amount. */
+  currencySymbolPlacement?: string;
+  currencyPrecision?: number;
 }
 
 /** The authenticated user shape returned by GET /auth/me and POST /auth/login. */

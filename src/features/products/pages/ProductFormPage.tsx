@@ -1,21 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Plus, Save, Search, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { AlertCircle, FileText, ImageIcon, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { useMemo, useState, type ChangeEvent } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { fileUrl } from '@/lib/fileUrl';
 import {
   createProduct,
   getComboVariations,
   getProduct,
   getProductMeta,
+  deleteProductMedia,
+  listProductMedia,
   updateProduct,
+  uploadProductImage,
+  uploadProductMedia,
   type PriceLineBody,
   type ProductMeta,
   type SaveProductBody,
@@ -56,6 +62,22 @@ interface FormState {
   notForSelling: boolean;
   description: string;
   type: 'single' | 'variable' | 'combo';
+  // Fields GOURI has that this form was missing entirely.
+  secondaryUnitId: string;
+  subUnitIds: number[];
+  expiryPeriod: string;
+  expiryPeriodType: '' | 'days' | 'months';
+  enableSrNo: boolean;
+  weight: string;
+  customField1: string;
+  customField2: string;
+  customField3: string;
+  customField4: string;
+  preparationTime: string;
+  image: string;
+  locationIds: number[];
+  /** Keyed by location id — one rack row per location, as GOURI renders it. */
+  racks: Record<string, { rack: string; row: string; position: string }>;
   single: { purchase: string; sell: string; groupPrices: GroupPrices };
   variations: AttrRow[];
   combo: { components: ComboComp[]; sell: string; groupPrices: GroupPrices };
@@ -66,6 +88,9 @@ const BLANK: FormState = {
   name: '', sku: '', barcodeType: 'C128', unitId: '', categoryId: '', subCategoryId: '', brandId: '',
   tax: '', taxType: 'exclusive', enableStock: true, alertQuantity: '', warrantyId: '', notForSelling: false,
   description: '', type: 'single',
+  secondaryUnitId: '', subUnitIds: [], expiryPeriod: '', expiryPeriodType: '', enableSrNo: false, weight: '',
+  customField1: '', customField2: '', customField3: '', customField4: '', preparationTime: '',
+  image: '', locationIds: [], racks: {},
   single: { purchase: '', sell: '', groupPrices: {} },
   variations: [{ templateId: '', name: '', values: [emptyValue()] }],
   combo: { components: [], sell: '', groupPrices: {} },
@@ -100,13 +125,18 @@ function GroupPriceInputs({ meta, value, onChange }: { meta?: ProductMeta; value
 export function ProductFormPage() {
   const { id } = useParams();
   const editingId = id ? Number(id) : undefined;
+  // GOURI's "Duplicate Product" (`/products/create?d={id}`): load the source, then clear the fields
+  // that must be unique so the save creates a new product instead of colliding.
+  const [searchParams] = useSearchParams();
+  const duplicateOf = searchParams.get('duplicate') ? Number(searchParams.get('duplicate')) : undefined;
+  const sourceId = editingId ?? duplicateOf;
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const { data: meta } = useQuery({ queryKey: ['product-meta'], queryFn: getProductMeta });
   const [form, setForm] = useState<FormState>(BLANK);
   const [error, setError] = useState('');
-  const [loaded, setLoaded] = useState(!editingId);
+  const [loaded, setLoaded] = useState(!sourceId);
   const [comboSearch, setComboSearch] = useState('');
 
   const { data: comboResults } = useQuery({
@@ -116,21 +146,36 @@ export function ProductFormPage() {
   });
 
   useQuery({
-    queryKey: ['product', editingId],
+    queryKey: ['product', sourceId],
     queryFn: async () => {
-      const p = await getProduct(editingId as number);
+      const p = await getProduct(sourceId as number);
       const gp = (arr: { priceGroupId: number; priceIncTax: number }[]): GroupPrices =>
         Object.fromEntries(arr.map((x) => [x.priceGroupId, String(x.priceIncTax)]));
       const type = p.type === 'variable' ? 'variable' : p.type === 'combo' ? 'combo' : 'single';
       const firstVar = p.productVariations[0]?.variations[0];
       setForm({
-        name: p.name, sku: p.sku, barcodeType: p.barcodeType,
+        // A duplicate must not inherit the SKU (it is unique); GOURI also suffixes the name.
+        name: duplicateOf ? `${p.name} (copy)` : p.name,
+        sku: duplicateOf ? '' : p.sku,
+        barcodeType: p.barcodeType,
         unitId: p.unitId ? String(p.unitId) : '', categoryId: p.categoryId ? String(p.categoryId) : '',
         subCategoryId: p.subCategoryId ? String(p.subCategoryId) : '', brandId: p.brandId ? String(p.brandId) : '',
         tax: p.tax ? String(p.tax) : '', taxType: p.taxType === 'inclusive' ? 'inclusive' : 'exclusive',
         enableStock: p.enableStock, alertQuantity: p.alertQuantity != null ? String(p.alertQuantity) : '',
         warrantyId: p.warrantyId ? String(p.warrantyId) : '', notForSelling: p.notForSelling, description: p.productDescription,
         type,
+        secondaryUnitId: p.secondaryUnitId ? String(p.secondaryUnitId) : '',
+        subUnitIds: p.subUnitIds ?? [],
+        expiryPeriod: p.expiryPeriod != null ? String(p.expiryPeriod) : '',
+        expiryPeriodType: p.expiryPeriodType === 'days' || p.expiryPeriodType === 'months' ? p.expiryPeriodType : '',
+        enableSrNo: p.enableSrNo,
+        weight: p.weight ?? '',
+        customField1: p.productCustomField1 ?? '', customField2: p.productCustomField2 ?? '',
+        customField3: p.productCustomField3 ?? '', customField4: p.productCustomField4 ?? '',
+        preparationTime: p.preparationTimeInMinutes != null ? String(p.preparationTimeInMinutes) : '',
+        image: p.image ?? '',
+        locationIds: p.productLocations ?? [],
+        racks: p.productRacks ?? {},
         single: { purchase: firstVar?.defaultPurchasePrice != null ? String(firstVar.defaultPurchasePrice) : '', sell: firstVar?.defaultSellPrice != null ? String(firstVar.defaultSellPrice) : '', groupPrices: firstVar ? gp(firstVar.groupPrices) : {} },
         variations: type === 'variable'
           ? p.productVariations.map((pv) => ({
@@ -150,8 +195,57 @@ export function ProductFormPage() {
       setLoaded(true);
       return p;
     },
+    enabled: Boolean(sourceId),
+  });
+
+  // Until meta loads, assume GOURI's defaults so the form doesn't flash sections in and out.
+  const settings = meta?.settings ?? {
+    enableBrand: true, enableCategory: true, enableSubCategory: true, enablePriceTax: true,
+    enableSubUnits: false, enableRacks: false, enableRow: false, enablePosition: false,
+    enableProductExpiry: false, defaultProfitPercent: 0, defaultUnitId: null,
+  };
+  const showRacks = settings.enableRacks || settings.enableRow || settings.enablePosition;
+  /** A unit qualifies as a sub-unit of the selected one when its base IS the selected unit. */
+  const subUnitOptions = useMemo(
+    () => (meta?.units ?? []).filter((u) => form.unitId && u.baseUnitId === Number(form.unitId)),
+    [meta, form.unitId],
+  );
+
+  // Attachments live in their own table, so they save immediately rather than with the form.
+  const { data: media } = useQuery({
+    queryKey: ['product-media', editingId],
+    queryFn: () => listProductMedia(editingId as number),
     enabled: Boolean(editingId),
   });
+  const brochure = media?.find((m) => m.kind === 'product_brochure');
+  const invalidateMedia = () => qc.invalidateQueries({ queryKey: ['product-media', editingId] });
+  const uploadBrochure = useMutation({
+    mutationFn: (file: File) => uploadProductMedia(editingId as number, file, 'product_brochure'),
+    onSuccess: invalidateMedia,
+    onError: (e: unknown) => setError(getApiErrorMessage(e, 'Could not upload the brochure')),
+  });
+  const removeBrochure = useMutation({
+    mutationFn: (id: number) => deleteProductMedia(id),
+    onSuccess: invalidateMedia,
+    onError: (e: unknown) => setError(getApiErrorMessage(e, 'Could not remove the brochure')),
+  });
+
+  const [uploading, setUploading] = useState(false);
+  const onPickImage = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const { path } = await uploadProductImage(file);
+      setF('image', path);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // let the same file be re-picked after an error
+    }
+  };
 
   const taxPct = useMemo(() => meta?.taxRates.find((r) => r.id === Number(form.tax))?.amount ?? 0, [meta, form.tax]);
   const inc = (excl: number) => (form.taxType === 'inclusive' ? excl : excl * (1 + taxPct / 100));
@@ -179,6 +273,21 @@ export function ProductFormPage() {
         alert_quantity: form.alertQuantity ? Number(form.alertQuantity) : null, sku: form.sku.trim() || undefined,
         barcode_type: form.barcodeType, warranty_id: form.warrantyId ? Number(form.warrantyId) : null,
         not_for_selling: form.notForSelling, product_description: form.description.trim() || undefined,
+        secondary_unit_id: form.secondaryUnitId ? Number(form.secondaryUnitId) : null,
+        sub_unit_ids: form.subUnitIds,
+        // GOURI clears both when either is blank — a period with no unit means nothing.
+        expiry_period: form.expiryPeriodType && form.expiryPeriod ? Number(form.expiryPeriod) : null,
+        expiry_period_type: form.expiryPeriodType || undefined,
+        enable_sr_no: form.enableSrNo,
+        weight: form.weight.trim() || undefined,
+        product_custom_field1: form.customField1.trim() || undefined,
+        product_custom_field2: form.customField2.trim() || undefined,
+        product_custom_field3: form.customField3.trim() || undefined,
+        product_custom_field4: form.customField4.trim() || undefined,
+        preparation_time_in_minutes: form.preparationTime ? Number(form.preparationTime) : null,
+        image: form.image,
+        product_locations: form.locationIds,
+        product_racks: form.racks,
       };
       let body: SaveProductBody;
       if (form.type === 'single') {
@@ -269,6 +378,25 @@ export function ProductFormPage() {
               {meta?.units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </Select>
           </div>
+          {settings.enableSubUnits && (
+            <div className="space-y-2">
+              <Label>Related sub-units</Label>
+              {/* Only units whose base IS the selected unit can be sub-units of it. */}
+              <MultiSelect
+                options={subUnitOptions.map((u) => ({ value: u.id, label: u.name }))}
+                value={form.subUnitIds}
+                onChange={(ids) => setF('subUnitIds', ids)}
+                placeholder={form.unitId ? 'Select sub-units…' : 'Pick a unit first'}
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>Secondary unit</Label>
+            <Select value={form.secondaryUnitId} onChange={(e) => setF('secondaryUnitId', e.target.value)}>
+              <option value="">None</option>
+              {meta?.units.filter((u) => String(u.id) !== form.unitId).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>Category</Label>
             <Select value={form.categoryId} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value, subCategoryId: '' }))}>
@@ -340,6 +468,159 @@ export function ProductFormPage() {
         </CardContent>
       </Card>
 
+      {/* Details — GOURI's second card. Each block is gated by the same business setting it is there. */}
+      <Card className="mb-5">
+        <CardHeader className="pb-3"><CardTitle className="text-base">Details</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          {settings.enableProductExpiry && (
+            <div className="space-y-2">
+              <Label>Expires in</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  className="w-24"
+                  value={form.expiryPeriod}
+                  onChange={(e) => setF('expiryPeriod', e.target.value)}
+                  disabled={!form.expiryPeriodType || !form.enableStock}
+                />
+                <Select
+                  className="flex-1"
+                  value={form.expiryPeriodType}
+                  // Clearing the unit clears the period too — GOURI stores neither without both.
+                  onChange={(e) => {
+                    const t = e.target.value as FormState['expiryPeriodType'];
+                    setForm((f) => ({ ...f, expiryPeriodType: t, expiryPeriod: t ? f.expiryPeriod : '' }));
+                  }}
+                  disabled={!form.enableStock}
+                >
+                  <option value="">Not applicable</option>
+                  <option value="days">Days</option>
+                  <option value="months">Months</option>
+                </Select>
+              </div>
+              {!form.enableStock && <p className="text-xs text-muted-foreground">Turn on Manage stock to set an expiry.</p>}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>Weight</Label>
+            <Input value={form.weight} onChange={(e) => setF('weight', e.target.value)} placeholder="e.g. 2.5 kg" />
+          </div>
+          <div className="space-y-2">
+            <Label>Preparation time (minutes)</Label>
+            <Input type="number" min={0} value={form.preparationTime} onChange={(e) => setF('preparationTime', e.target.value)} />
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 pb-2 text-sm">
+              <input type="checkbox" className="h-4 w-4 rounded border-input accent-primary" checked={form.enableSrNo} onChange={(e) => setF('enableSrNo', e.target.checked)} />
+              Enable IMEI / Serial number
+            </label>
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Business locations</Label>
+            <MultiSelect
+              options={(meta?.locations ?? []).map((l) => ({ value: l.id, label: l.name }))}
+              value={form.locationIds}
+              onChange={(ids) => setF('locationIds', ids)}
+              placeholder="All locations (none selected)"
+            />
+            <p className="text-xs text-muted-foreground">Where this product is available. Leave empty to leave it unassigned.</p>
+          </div>
+
+          {/* Product image — uploaded on select, so the save stays a plain JSON call. */}
+          <div className="space-y-2">
+            <Label>Product image</Label>
+            <div className="flex items-center gap-3">
+              {form.image ? (
+                <img
+                  src={fileUrl(form.image) ?? ''}
+                  alt="Product"
+                  className="h-14 w-14 rounded-md border object-cover"
+                />
+              ) : (
+                <div className="grid h-14 w-14 place-items-center rounded-md border border-dashed text-muted-foreground">
+                  <ImageIcon className="h-5 w-5" />
+                </div>
+              )}
+              <div className="space-y-1">
+                <Input type="file" accept="image/*" className="h-9 text-xs" disabled={uploading} onChange={onPickImage} />
+                {form.image && (
+                  <button type="button" className="text-xs text-destructive hover:underline" onClick={() => setF('image', '')}>
+                    Remove image
+                  </button>
+                )}
+                {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Brochure needs a product id to attach to, so it appears once the product exists. */}
+          {editingId && (
+            <div className="space-y-2">
+              <Label>Product brochure</Label>
+              {brochure ? (
+                <div className="flex items-center gap-2 rounded-md border p-2 text-sm">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <a href={brochure.url} target="_blank" rel="noreferrer" className="flex-1 truncate hover:underline">
+                    {brochure.fileName}
+                  </a>
+                  <button type="button" className="text-destructive" onClick={() => removeBrochure.mutate(brochure.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.csv,.zip,image/*"
+                  className="h-9 text-xs"
+                  disabled={uploadBrochure.isPending}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadBrochure.mutate(f);
+                    e.target.value = '';
+                  }}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">PDF, Word, image, CSV or ZIP.</p>
+            </div>
+          )}
+
+          <div className="space-y-2 sm:col-span-3">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Custom fields</Label>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Input placeholder="Custom field 1" value={form.customField1} onChange={(e) => setF('customField1', e.target.value)} />
+              <Input placeholder="Custom field 2" value={form.customField2} onChange={(e) => setF('customField2', e.target.value)} />
+              <Input placeholder="Custom field 3" value={form.customField3} onChange={(e) => setF('customField3', e.target.value)} />
+              <Input placeholder="Custom field 4" value={form.customField4} onChange={(e) => setF('customField4', e.target.value)} />
+            </div>
+          </div>
+
+          {showRacks && (meta?.locations.length ?? 0) > 0 && (
+            <div className="space-y-2 sm:col-span-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Rack details</Label>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {meta?.locations.map((l) => {
+                  const r = form.racks[l.id] ?? { rack: '', row: '', position: '' };
+                  const setRack = (key: 'rack' | 'row' | 'position', v: string) =>
+                    setForm((f) => ({ ...f, racks: { ...f.racks, [l.id]: { ...r, [key]: v } } }));
+                  return (
+                    <div key={l.id} className="rounded-md border border-dashed p-3">
+                      <p className="mb-2 text-sm font-medium">{l.name}</p>
+                      <div className="space-y-2">
+                        {settings.enableRacks && <Input className="h-9" placeholder="Rack" value={r.rack} onChange={(e) => setRack('rack', e.target.value)} />}
+                        {settings.enableRow && <Input className="h-9" placeholder="Row" value={r.row} onChange={(e) => setRack('row', e.target.value)} />}
+                        {settings.enablePosition && <Input className="h-9" placeholder="Position" value={r.position} onChange={(e) => setRack('position', e.target.value)} />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Type + pricing */}
       <Card className="mb-5">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -404,11 +685,34 @@ export function ProductFormPage() {
                             <Input value={val.value} onChange={(e) => patchValue(i, vi, { value: e.target.value })} placeholder="e.g. Red" />
                           </div>
                           <div className="col-span-3 space-y-1">
-                            <Label className="text-xs">Purchase (exc)</Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs">Purchase (exc)</Label>
+                              {/* GOURI's "Apply all" — copy this cell down the column instead of retyping it. */}
+                              {vi === 0 && attr.values.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="text-[11px] text-primary hover:underline"
+                                  onClick={() => patchAttr(i, { values: attr.values.map((v) => ({ ...v, purchase: val.purchase })) })}
+                                >
+                                  Apply all
+                                </button>
+                              )}
+                            </div>
                             <Input type="number" step="0.01" value={val.purchase} onChange={(e) => patchValue(i, vi, { purchase: e.target.value })} />
                           </div>
                           <div className="col-span-3 space-y-1">
-                            <Label className="text-xs">Sell (exc)</Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs">Sell (exc)</Label>
+                              {vi === 0 && attr.values.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="text-[11px] text-primary hover:underline"
+                                  onClick={() => patchAttr(i, { values: attr.values.map((v) => ({ ...v, sell: val.sell })) })}
+                                >
+                                  Apply all
+                                </button>
+                              )}
+                            </div>
                             <Input type="number" step="0.01" value={val.sell} onChange={(e) => patchValue(i, vi, { sell: e.target.value })} />
                           </div>
                           <div className="col-span-1 pb-1 text-xs text-muted-foreground">= {money(inc(Number(val.sell || 0)))}</div>

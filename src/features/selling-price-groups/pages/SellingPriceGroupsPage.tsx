@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Power, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Download, Pencil, Plus, Power, Trash2, Upload, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,10 @@ import { getApiErrorMessage } from '@/lib/api/axios';
 import {
   createSellingPriceGroup,
   deleteSellingPriceGroup,
+  exportGroupPrices,
+  importGroupPrices,
   listSellingPriceGroups,
+  type GroupPriceImportResult,
   toggleSellingPriceGroup,
   updateSellingPriceGroup,
   type SellingPriceGroup,
@@ -69,6 +72,18 @@ export function SellingPriceGroupsPage() {
     onError: (err: unknown) => window.alert(getApiErrorMessage(err, 'Could not delete')),
   });
 
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importResult, setImportResult] = useState<GroupPriceImportResult | null>(null);
+  const runImport = useMutation({
+    mutationFn: (file: File) => importGroupPrices(file),
+    onSuccess: (res) => {
+      setImportResult(res);
+      if (!res.errors.length) invalidate();
+    },
+    onError: (err: unknown) => window.alert(getApiErrorMessage(err, 'Could not import the price list')),
+  });
+  const importing = runImport.isPending;
+
   const startEdit = (g: SellingPriceGroup) => setEditing({ id: g.id, name: g.name, description: g.description });
 
   const onSave = () => {
@@ -84,15 +99,74 @@ export function SellingPriceGroupsPage() {
         description="Named price tiers (e.g. Wholesale, Retail). Per-product prices are set on each product."
         breadcrumbs={[{ label: 'Products' }, { label: 'Selling Price Groups' }]}
         actions={
-          !editing &&
-          canCreate && (
-            <Button size="sm" onClick={() => setEditing({ ...BLANK })}>
-              <Plus className="h-4 w-4" />
-              Add Price Group
-            </Button>
+          !editing && (
+            <div className="flex flex-wrap gap-2">
+              {/* Bulk-edit the whole price list in Excel: export, edit, import back. */}
+              <Button variant="outline" size="sm" onClick={() => exportGroupPrices()}>
+                <Download className="h-4 w-4" />
+                Export prices
+              </Button>
+              {canUpdate && (
+                <>
+                  <Button variant="outline" size="sm" disabled={importing} onClick={() => fileRef.current?.click()}>
+                    <Upload className="h-4 w-4" />
+                    {importing ? 'Importing…' : 'Import prices'}
+                  </Button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".xlsx,.csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) runImport.mutate(f);
+                      e.target.value = '';
+                    }}
+                  />
+                </>
+              )}
+              {canCreate && (
+                <Button size="sm" onClick={() => setEditing({ ...BLANK })}>
+                  <Plus className="h-4 w-4" />
+                  Add Price Group
+                </Button>
+              )}
+            </div>
           )
         }
       />
+
+      {importResult && (
+        <Card
+          className={`mb-5 ${importResult.errors.length ? 'border-destructive/40 bg-destructive/5' : 'border-emerald-500/40 bg-emerald-500/5'}`}
+        >
+          <CardContent className="space-y-2 py-4 text-sm">
+            {importResult.errors.length ? (
+              <>
+                <p className="font-medium text-destructive">
+                  Nothing was imported — fix these {importResult.errors.length} problem(s) and try again:
+                </p>
+                <ul className="max-h-48 space-y-1 overflow-y-auto text-xs">
+                  {importResult.errors.map((err, i) => (
+                    <li key={i}>
+                      <span className="font-medium">Row {err.row}:</span> {err.message}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                Updated {importResult.updated} price(s) across {importResult.rows} product(s).
+              </p>
+            )}
+            {importResult.unknownColumns.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Ignored unrecognised column(s): {importResult.unknownColumns.join(', ')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {editing && (
         <Card className="mb-5">
