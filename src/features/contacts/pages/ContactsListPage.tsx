@@ -135,9 +135,17 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
       {
         key: 'due',
         header: cfg.dueLabel,
-        className: 'text-right',
+        className: 'text-right tabular-nums',
         headerClassName: 'text-right',
-        render: () => <Pending />,
+        // Purchase due is real now; sale due waits on the Sells module.
+        render: (c) =>
+          listType === 'supplier' && c.totalPurchaseDue != null ? (
+            <span className={c.totalPurchaseDue > 0 ? 'text-destructive' : undefined}>
+              {formatMoney(c.totalPurchaseDue)}
+            </span>
+          ) : (
+            <Pending />
+          ),
       },
       {
         key: 'status',

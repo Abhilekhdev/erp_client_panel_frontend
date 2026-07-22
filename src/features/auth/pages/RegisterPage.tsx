@@ -12,12 +12,13 @@ export function RegisterPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="w-full max-w-md"
+      // Wider than the login card: this is a 3-step form, not two fields.
+      className="w-full max-w-2xl"
     >
       <div className="mb-6 space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Create your business</h1>
         <p className="text-sm text-muted-foreground">
-          Set up your workspace — you'll be the owner &amp; administrator.
+          Set up your workspace in three short steps — you'll be the owner &amp; administrator.
         </p>
       </div>
       <RegisterForm />

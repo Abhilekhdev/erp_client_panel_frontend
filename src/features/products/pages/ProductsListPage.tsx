@@ -25,8 +25,10 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Select } from '@/components/ui/select';
 import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { cn } from '@/lib/utils';
 import { GroupPricesModal } from '../components/GroupPricesModal';
 import { ProductViewModal } from '../components/ProductViewModal';
+import { StockReportTab } from '../components/StockReportTab';
 import {
   deleteProduct,
   exportProducts,
@@ -68,6 +70,8 @@ export function ProductsListPage() {
   const [selected, setSelected] = useState<Array<string | number>>([]);
   const [viewId, setViewId] = useState<number | null>(null);
   const [groupPricesId, setGroupPricesId] = useState<number | null>(null);
+  const [tab, setTab] = useState<'products' | 'stock'>('products');
+  const canSeeStockReport = has('stock_report.view');
   const [locationModal, setLocationModal] = useState<null | 'add' | 'remove'>(null);
   const [locationIds, setLocationIds] = useState<number[]>([]);
 
@@ -160,6 +164,21 @@ export function ProductsListPage() {
           <span className="text-xs">{p.locations.join(', ')}</span>
         ) : (
           <span className="text-xs text-muted-foreground">Unassigned</span>
+        ),
+    },
+    {
+      key: 'currentStock',
+      header: 'Current stock',
+      className: 'text-right tabular-nums',
+      headerClassName: 'text-right',
+      // null = stock tracking off for this product, which is not the same as zero on hand.
+      render: (p: ProductListRow) =>
+        p.currentStock == null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <span className={p.currentStock <= 0 ? 'text-destructive' : undefined}>
+            {p.currentStock} {p.unit}
+          </span>
         ),
     },
     ...([1, 2, 3, 4] as const).map((n) => ({
@@ -378,6 +397,45 @@ export function ProductsListPage() {
         </Card>
       )}
 
+      {/* GOURI puts a second tab here, sharing the same filter bar (product/index.blade.php:163-198). */}
+      {canSeeStockReport && (
+        <div className="mb-4 flex gap-1 border-b">
+          {(['products', 'stock'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                'whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                tab === t
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t === 'products' ? 'All Products' : 'Stock Report'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'stock' ? (
+        <StockReportTab
+          filters={{
+            categoryId: filters.categoryId,
+            brandId: filters.brandId,
+            unitId: filters.unitId,
+            taxId: filters.taxId,
+            // The report is per-location, so "unassigned" (an All-Products-only option) can't apply.
+            locationId: filters.locationId === 'none' ? '' : filters.locationId,
+            active: filters.active,
+            notForSelling: filters.notForSelling,
+          }}
+          search={search}
+          onSearchChange={(v) => setSearch(v)}
+          onResetFilters={() => setFilters(BLANK_FILTERS)}
+          filtersActive={filtersActive}
+        />
+      ) : (
       <DataTable
         columns={columns}
         data={data?.data ?? []}
@@ -407,6 +465,7 @@ export function ProductsListPage() {
         filtersActive={filtersActive}
         columnsStorageKey="products"
       />
+      )}
 
       <ProductViewModal productId={viewId} onClose={() => setViewId(null)} />
       <GroupPricesModal productId={groupPricesId} onClose={() => setGroupPricesId(null)} />

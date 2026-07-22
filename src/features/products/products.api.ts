@@ -21,6 +21,8 @@ export interface ProductListRow {
   /** null when the caller lacks `view_purchase_price`. */
   purchasePriceMin: number | null;
   purchasePriceMax: number | null;
+  /** Qty on hand across every location; null when the product has stock tracking off. */
+  currentStock: number | null;
   /** Names of the business locations this product is sold at. */
   locations: string[];
   customField1: string;
@@ -43,7 +45,10 @@ export interface ProductVariationRow {
   profitPercent: number;
   defaultSellPrice: number | null;
   sellPriceIncTax: number | null;
-  comboVariations: { variation_id: number; quantity: number; unit_id: number | null }[] | null;
+  /** `label` and `purchasePrice` are resolved server-side so the edit form can name each component. */
+  comboVariations:
+    | { variation_id: number; quantity: number; unit_id: number | null; label?: string; purchasePrice?: number }[]
+    | null;
   groupPrices: ProductGroupPrice[];
 }
 export interface ProductVariationGroup {
@@ -251,6 +256,8 @@ export interface ComboVariationOption {
   variationName: string;
   sku: string;
   barcodeType: string;
+  /** Per-selling-price-group rates, so Print Labels can print a group price. */
+  groupPrices: { priceGroupId: number; priceIncTax: number }[];
   purchasePrice: number;
   sellPrice: number;
   sellPriceIncTax: number;
@@ -321,4 +328,62 @@ export async function exportProducts(params: Omit<ProductFilters, 'page' | 'page
   a.download = `products-${new Date().toISOString().slice(0, 10)}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── stock report (the products list's second tab) ─────
+export interface StockReportRow {
+  variationId: number;
+  productId: number;
+  sku: string;
+  product: string;
+  /** Blank for single products — only a variable product has a meaningful variation label. */
+  variation: string;
+  category: string;
+  locationId: number | null;
+  location: string;
+  unit: string;
+  /** null when the caller lacks `access_default_selling_price`. */
+  unitPrice: number | null;
+  stock: number;
+  enableStock: boolean;
+  alertQuantity: number | null;
+  /** The three below are null without `view_product_stock_value`. */
+  stockValueBySalePrice: number | null;
+  stockValueByPurchasePrice: number | null;
+  potentialProfit: number | null;
+  /** Transaction-derived — null until the transaction core exists. */
+  totalSold: number | null;
+  totalTransferred: number | null;
+  totalAdjusted: number | null;
+  customField1: string;
+  customField2: string;
+  customField3: string;
+  customField4: string;
+}
+
+export interface StockReportResult {
+  data: StockReportRow[];
+  total: number;
+  /** Grand totals over the whole filtered set, not just the visible page. */
+  totals: {
+    stock: number;
+    stockValueBySalePrice: number | null;
+    stockValueByPurchasePrice: number | null;
+    potentialProfit: number | null;
+    totalSold: number | null;
+    totalTransferred: number | null;
+    totalAdjusted: number | null;
+  };
+  can: { viewSellingPrice: boolean; viewStockValue: boolean };
+  /** Columns that cannot be computed yet, so the UI can explain rather than show a fake 0. */
+  pendingColumns: string[];
+}
+
+export interface StockReportFilters extends Omit<ProductFilters, 'type'> {
+  lowStock?: boolean | '';
+}
+
+export async function getStockReport(params: StockReportFilters): Promise<StockReportResult> {
+  const { data } = await api.get<Envelope<StockReportResult>>('/products/stock-report', { params });
+  return data.data;
 }

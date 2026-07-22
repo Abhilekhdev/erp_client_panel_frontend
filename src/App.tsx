@@ -45,7 +45,10 @@ import { UsersListPage } from '@/features/users/pages/UsersListPage';
 import { UserViewPage } from '@/features/users/pages/UserViewPage';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
+import { ComingSoonPage } from '@/pages/ComingSoonPage';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { PurchaseFormPage } from '@/features/purchases/pages/PurchaseFormPage';
+import { PurchasesListPage } from '@/features/purchases/pages/PurchasesListPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -62,6 +65,10 @@ const CUSTOM_ROUTES = new Set([
   '/products/create',
   '/labels',
   '/settings/label-sheets',
+  '/products/import',
+  '/opening-stock/import',
+  '/purchases',
+  '/purchases/create',
   '/reports/activity-log',
   '/units',
   '/categories',
@@ -149,6 +156,41 @@ export function App() {
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
             <Route path="/labels" element={<LabelsPage />} />
             <Route path="/settings/label-sheets" element={<LabelSheetsPage />} />
+
+            {/* Purchases — the first module on the transaction core */}
+            <Route path="/purchases" element={<PurchasesListPage />} />
+            <Route path="/purchases/create" element={<PurchaseFormPage />} />
+            <Route path="/purchases/:id/edit" element={<PurchaseFormPage />} />
+
+            {/* Both imports write opening stock, so they wait for the transaction core. An honest
+                placeholder beats the generic list scaffold, which looked like a broken feature. */}
+            <Route
+              path="/products/import"
+              element={
+                <ComingSoonPage
+                  title="Import Products"
+                  description="Bulk-create products from a spreadsheet."
+                  blockedBy="The product import sheet includes opening stock, its location and expiry date. Those columns need the stock ledger, which arrives with Purchases. Building it now would mean shipping an import that silently drops three of its columns — so it lands complete, with the transaction core."
+                  alternatives={[
+                    { label: 'Add a product', to: '/products/create' },
+                    { label: 'Import contacts instead', to: '/contacts/import' },
+                  ]}
+                  breadcrumbs={[{ label: 'Products' }, { label: 'Import Products' }]}
+                />
+              }
+            />
+            <Route
+              path="/opening-stock/import"
+              element={
+                <ComingSoonPage
+                  title="Import Opening Stock"
+                  description="Set starting quantities for many products at once."
+                  blockedBy="Opening stock is recorded as a stock transaction against a location. That ledger arrives with Purchases, so this import is built alongside it."
+                  alternatives={[{ label: 'Back to products', to: '/products' }]}
+                  breadcrumbs={[{ label: 'Products' }, { label: 'Import Opening Stock' }]}
+                />
+              }
+            />
 
             {/* Reports */}
             <Route path="/reports/activity-log" element={<ActivityLogPage />} />
