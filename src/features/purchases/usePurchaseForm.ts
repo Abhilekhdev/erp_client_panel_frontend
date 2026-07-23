@@ -23,6 +23,12 @@ export interface LineRow {
   id: string;
   /** Set when editing an existing purchase — lets the server update the row in place. */
   purchaseLineId?: number;
+  /** The requisition line this order line fulfils (purchase-order form only). */
+  purchaseRequisitionLineId?: number;
+  /** The purchase-order line this receipt draws against (purchase form only). */
+  purchaseOrderLineId?: number;
+  /** When drawn from an order/requisition, the quantity still available on that source line. */
+  maxQuantity?: number;
 
   productId: number;
   variationId: number;
@@ -109,10 +115,17 @@ export function usePurchaseForm(meta: PurchaseMeta | undefined) {
   );
 
   const addLine = useCallback(
-    (hit: PurchaseProductHit) => {
+    (
+      hit: PurchaseProductHit,
+      /** Draw-down context: a starting quantity, a cap, and the source line ids. */
+      extra?: Partial<Pick<LineRow, 'purchaseRequisitionLineId' | 'purchaseOrderLineId' | 'maxQuantity'>> & {
+        quantity?: number;
+      },
+    ) => {
       setLines((prev) => {
         // Same variation twice would split one receipt into two lots for no reason; bump the qty.
-        const existing = prev.find((l) => l.variationId === hit.variationId);
+        // A drawn-in line is exempt — it is tied to a specific source line, so it stays its own row.
+        const existing = extra ? undefined : prev.find((l) => l.variationId === hit.variationId);
         if (existing) {
           return prev.map((l) =>
             l.id === existing.id
@@ -129,6 +142,9 @@ export function usePurchaseForm(meta: PurchaseMeta | undefined) {
         const discount = hit.lastPurchase?.discountPercent ?? 0;
         const row: LineRow = {
           id: `${hit.variationId}-${prev.length}-${performance.now()}`,
+          purchaseRequisitionLineId: extra?.purchaseRequisitionLineId,
+          purchaseOrderLineId: extra?.purchaseOrderLineId,
+          maxQuantity: extra?.maxQuantity,
           productId: hit.productId,
           variationId: hit.variationId,
           name: hit.name,
@@ -140,7 +156,7 @@ export function usePurchaseForm(meta: PurchaseMeta | undefined) {
           allowDecimal: hit.allowDecimal,
           subUnits: hit.subUnits,
           lastPurchase: hit.lastPurchase,
-          quantity: '1',
+          quantity: str(extra?.quantity ?? 1),
           subUnitId: null,
           ppWithoutDiscount: str(price),
           discountPercent: str(discount),
@@ -152,7 +168,12 @@ export function usePurchaseForm(meta: PurchaseMeta | undefined) {
           lotNumber: '',
           mfgDate: '',
           expDate: '',
-          calc: calcLine({ quantity: 1, ppWithoutDiscount: price, discountPercent: discount, taxPercent: 0 }),
+          calc: calcLine({
+            quantity: extra?.quantity ?? 1,
+            ppWithoutDiscount: price,
+            discountPercent: discount,
+            taxPercent: 0,
+          }),
         };
         return [...prev, recalc(row, undefined, taxPercentOf(hit.taxRateId))];
       });

@@ -49,6 +49,12 @@ import { ComingSoonPage } from '@/pages/ComingSoonPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { PurchaseFormPage } from '@/features/purchases/pages/PurchaseFormPage';
 import { PurchasesListPage } from '@/features/purchases/pages/PurchasesListPage';
+import { RequisitionFormPage } from '@/features/purchase-requisitions/pages/RequisitionFormPage';
+import { RequisitionsListPage } from '@/features/purchase-requisitions/pages/RequisitionsListPage';
+import { PurchaseOrderFormPage } from '@/features/purchase-orders/pages/PurchaseOrderFormPage';
+import { PurchaseOrdersListPage } from '@/features/purchase-orders/pages/PurchaseOrdersListPage';
+import { ReturnFormPage } from '@/features/purchase-returns/pages/ReturnFormPage';
+import { ReturnsListPage } from '@/features/purchase-returns/pages/ReturnsListPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -69,6 +75,10 @@ const CUSTOM_ROUTES = new Set([
   '/opening-stock/import',
   '/purchases',
   '/purchases/create',
+  '/purchase-requisitions',
+  '/purchase-orders',
+  '/purchase-orders/create',
+  '/purchase-returns',
   '/reports/activity-log',
   '/units',
   '/categories',
@@ -161,6 +171,14 @@ export function App() {
             <Route path="/purchases" element={<PurchasesListPage />} />
             <Route path="/purchases/create" element={<PurchaseFormPage />} />
             <Route path="/purchases/:id/edit" element={<PurchaseFormPage />} />
+            <Route path="/purchase-requisitions" element={<RequisitionsListPage />} />
+            <Route path="/purchase-requisitions/create" element={<RequisitionFormPage />} />
+            <Route path="/purchase-orders" element={<PurchaseOrdersListPage />} />
+            <Route path="/purchase-orders/create" element={<PurchaseOrderFormPage />} />
+            <Route path="/purchase-orders/:id/edit" element={<PurchaseOrderFormPage />} />
+            <Route path="/purchase-returns" element={<ReturnsListPage />} />
+            <Route path="/purchase-returns/create" element={<ReturnFormPage />} />
+            <Route path="/purchase-returns/:id/edit" element={<ReturnFormPage />} />
 
             {/* Both imports write opening stock, so they wait for the transaction core. An honest
                 placeholder beats the generic list scaffold, which looked like a broken feature. */}

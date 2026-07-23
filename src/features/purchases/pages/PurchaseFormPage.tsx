@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { usePermissions } from '@/features/auth/usePermission';
+import { getOpenOrders, type OpenOrder } from '@/features/purchase-orders/orders.api';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import { formatMoney } from '@/lib/currency';
 import { ProductSearchBox } from '../components/ProductSearchBox';
@@ -71,6 +72,9 @@ export function PurchaseFormPage() {
   const [exchangeRate, setExchangeRate] = useState('1');
   const [additionalNotes, setAdditionalNotes] = useState('');
 
+  // Purchase orders this receipt draws down.
+  const [pulledOrderIds, setPulledOrderIds] = useState<number[]>([]);
+
   // Payment taken at the time of purchase (create only, as in GOURI)
   const [payNow, setPayNow] = useState('0');
   const [payMethod, setPayMethod] = useState('cash');
@@ -129,6 +133,45 @@ export function PurchaseFormPage() {
     }
   };
 
+  // Open orders for this supplier, offered on a fresh receipt only.
+  const [selectedOrder, setSelectedOrder] = useState('');
+  const { data: openOrders = [] } = useQuery({
+    queryKey: ['open-orders', contactId, locationId],
+    queryFn: () => getOpenOrders(Number(contactId), locationId ? Number(locationId) : undefined),
+    enabled: Boolean(contactId) && Boolean(locationId) && !editing && !duplicating,
+  });
+
+  const pullOrder = (order: OpenOrder) => {
+    if (pulledOrderIds.includes(order.id)) return;
+    setPulledOrderIds((prev) => [...prev, order.id]);
+    if (order.shippingDetails) form.setShippingDetails(order.shippingDetails);
+    for (const l of order.lines) {
+      form.addLine(
+        {
+          variationId: l.variationId,
+          productId: l.productId,
+          name: l.product,
+          variation: l.variation,
+          sku: l.sku,
+          enableStock: true,
+          currentStock: null,
+          taxRateId: l.taxRateId,
+          unitId: null,
+          unitName: '',
+          allowDecimal: true,
+          secondaryUnitId: null,
+          subUnits: [],
+          defaultPurchasePrice: l.ppWithoutDiscount,
+          dppIncTax: 0,
+          sellPriceIncTax: 0,
+          lastPurchase: { price: l.ppWithoutDiscount, discountPercent: l.discountPercent },
+        },
+        { quantity: l.quantityRemaining, maxQuantity: l.quantityRemaining, purchaseOrderLineId: l.id },
+      );
+    }
+    setSelectedOrder('');
+  };
+
   const save = useMutation({
     mutationFn: (body: SavePurchaseBody) =>
       editing ? updatePurchase(Number(id), body) : createPurchase(body),
@@ -164,8 +207,10 @@ export function PurchaseFormPage() {
         .map((x) => ({ name: x.name, amount: Number(x.amount) || 0 })),
       exchange_rate: Number(exchangeRate) || 1,
       additional_notes: additionalNotes || undefined,
+      purchase_order_ids: pulledOrderIds.length ? pulledOrderIds : undefined,
       purchases: form.lines.map((l) => ({
         purchase_line_id: l.purchaseLineId,
+        purchase_order_line_id: l.purchaseOrderLineId,
         product_id: l.productId,
         variation_id: l.variationId,
         quantity: Number(l.quantity) || 0,
@@ -363,6 +408,36 @@ export function PurchaseFormPage() {
 
         {/* ── Products ───────────────────────────────── */}
         <Card className="space-y-4 p-4">
+          {!editing && !duplicating && contactId && locationId && openOrders.length > 0 && (
+            <div className="flex flex-wrap items-end gap-3 rounded-lg border border-dashed p-3">
+              <div className="flex-1">
+                <Label htmlFor="pullOrder">Receive against a purchase order</Label>
+                <Select
+                  id="pullOrder"
+                  value={selectedOrder}
+                  onChange={(e) => {
+                    const o = openOrders.find((x) => String(x.id) === e.target.value);
+                    if (o) pullOrder(o);
+                  }}
+                >
+                  <option value="">Select an open order…</option>
+                  {openOrders
+                    .filter((o) => !pulledOrderIds.includes(o.id))
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.refNo} ({o.status})
+                      </option>
+                    ))}
+                </Select>
+              </div>
+              {pulledOrderIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Receiving against {pulledOrderIds.length} order(s). Saving marks those quantities as received.
+                </p>
+              )}
+            </div>
+          )}
+
           <ProductSearchBox
             locationId={locationId ? Number(locationId) : undefined}
             contactId={contactId ? Number(contactId) : undefined}

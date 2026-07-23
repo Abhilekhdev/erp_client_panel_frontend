@@ -171,6 +171,8 @@ export interface PurchaseDetail {
 /** Only what the user typed. Every derived figure is recomputed by the server. */
 export interface SavePurchaseLineBody {
   purchase_line_id?: number;
+  /** The purchase-order line this receipt draws against. */
+  purchase_order_line_id?: number;
   product_id: number;
   variation_id: number;
   quantity: number;
@@ -201,6 +203,8 @@ export interface SavePurchaseBody {
   additional_expenses?: { name: string; amount: number }[];
   exchange_rate?: number;
   additional_notes?: string;
+  /** Purchase orders this receipt draws down. */
+  purchase_order_ids?: number[];
   purchases: SavePurchaseLineBody[];
   payment?: SavePaymentBody[];
 }
