@@ -35,11 +35,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative z-10 w-full max-w-lg rounded-xl border bg-card text-card-foreground shadow-xl',
+          // Column layout capped to the viewport so tall forms scroll inside instead of clipping.
+          'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xl',
           className,
         )}
       >
-        <div className="flex items-start justify-between border-b px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between border-b px-5 py-4">
           <div>
             <h3 className="text-base font-semibold">{title}</h3>
             {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
@@ -53,8 +54,10 @@ export function Modal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t px-5 py-3">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && (
+          <div className="flex shrink-0 justify-end gap-2 border-t px-5 py-3">{footer}</div>
+        )}
       </div>
     </div>
   );

@@ -1,21 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Barcode,
   Copy,
+  Database,
   Download,
   Eye,
+  History,
   Layers,
   MapPin,
   Package,
   Pencil,
   Plus,
   Power,
-  Tag,
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/common/DataTable';
 import { PageHeader } from '@/components/common/PageHeader';
+import { RowActions } from '@/components/common/RowActions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +30,7 @@ import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import { cn } from '@/lib/utils';
 import { GroupPricesModal } from '../components/GroupPricesModal';
+import { OpeningStockModal } from '../components/OpeningStockModal';
 import { ProductViewModal } from '../components/ProductViewModal';
 import { StockReportTab } from '../components/StockReportTab';
 import {
@@ -70,8 +74,11 @@ export function ProductsListPage() {
   const [selected, setSelected] = useState<Array<string | number>>([]);
   const [viewId, setViewId] = useState<number | null>(null);
   const [groupPricesId, setGroupPricesId] = useState<number | null>(null);
+  const [openingStockId, setOpeningStockId] = useState<number | null>(null);
   const [tab, setTab] = useState<'products' | 'stock'>('products');
   const canSeeStockReport = has('stock_report.view');
+  const canOpeningStock = has('product.opening_stock');
+  const canView = has('product.view');
   const [locationModal, setLocationModal] = useState<null | 'add' | 'remove'>(null);
   const [locationIds, setLocationIds] = useState<number[]>([]);
 
@@ -214,49 +221,55 @@ export function ProductsListPage() {
       headerClassName: 'text-right',
       className: 'text-right',
       render: (p: ProductListRow) => (
-        <div className="flex justify-end gap-1.5">
-          <Button variant="outline" size="sm" onClick={() => setViewId(p.id)} title="View">
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/labels?productId=${p.id}`)} title="Print labels">
-            <Tag className="h-4 w-4" />
-          </Button>
-          {canUpdate && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/products/${p.id}/edit`)} title="Edit">
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggle.mutate(p)}
-                title={p.isInactive ? 'Activate' : 'Deactivate'}
-              >
-                <Power className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          {canUpdate && (
-            <Button variant="outline" size="sm" onClick={() => setGroupPricesId(p.id)} title="Add or edit group prices">
-              <Layers className="h-4 w-4" />
-            </Button>
-          )}
-          {canCreate && (
-            // GOURI's "Duplicate Product" — the create form loads the source and clears its identity.
-            <Button variant="outline" size="sm" onClick={() => navigate(`/products/create?duplicate=${p.id}`)} title="Duplicate">
-              <Copy className="h-4 w-4" />
-            </Button>
-          )}
-          {canDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id)}
-              title="Delete"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex justify-end">
+          {/* GOURI's per-row "Actions" dropdown, ported 1:1 — the icon strip overflowed the cell. */}
+          <RowActions
+            actions={[
+              { label: 'View', icon: <Eye className="h-4 w-4" />, onClick: () => setViewId(p.id), show: canView },
+              { label: 'Labels', icon: <Barcode className="h-4 w-4" />, onClick: () => navigate(`/labels?productId=${p.id}`) },
+              { label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => navigate(`/products/${p.id}/edit`), show: canUpdate },
+              {
+                label: p.isInactive ? 'Reactivate' : 'Deactivate',
+                icon: <Power className="h-4 w-4" />,
+                onClick: () => toggle.mutate(p),
+                show: canUpdate,
+              },
+              {
+                label: 'Add or edit opening stock',
+                icon: <Database className="h-4 w-4" />,
+                onClick: () => setOpeningStockId(p.id),
+                // GOURI: only for stock-tracked products, gated on product.opening_stock.
+                show: canOpeningStock && p.enableStock,
+                divider: true,
+              },
+              {
+                label: 'Product stock history',
+                icon: <History className="h-4 w-4" />,
+                onClick: () => navigate(`/products/${p.id}/stock-history`),
+                show: canView && p.enableStock,
+              },
+              {
+                label: 'Add or edit Group Prices',
+                icon: <Layers className="h-4 w-4" />,
+                onClick: () => setGroupPricesId(p.id),
+                show: canUpdate,
+              },
+              {
+                label: 'Duplicate Product',
+                icon: <Copy className="h-4 w-4" />,
+                onClick: () => navigate(`/products/create?duplicate=${p.id}`),
+                show: canCreate,
+              },
+              {
+                label: 'Delete',
+                icon: <Trash2 className="h-4 w-4" />,
+                onClick: () => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id),
+                show: canDelete,
+                destructive: true,
+                divider: true,
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -469,6 +482,7 @@ export function ProductsListPage() {
 
       <ProductViewModal productId={viewId} onClose={() => setViewId(null)} />
       <GroupPricesModal productId={groupPricesId} onClose={() => setGroupPricesId(null)} />
+      <OpeningStockModal productId={openingStockId} onClose={() => setOpeningStockId(null)} />
 
       <Modal
         open={locationModal !== null}

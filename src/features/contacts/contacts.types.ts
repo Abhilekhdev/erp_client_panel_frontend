@@ -73,6 +73,8 @@ export interface ContactDetail {
   isExport: boolean;
   isDefault: boolean;
   advanceBalance: number;
+  /** What the contact still owes on their opening balance (gross minus paid). */
+  openingBalance: number;
   assignedToUsers: number[];
   createdAt: string | null;
 }

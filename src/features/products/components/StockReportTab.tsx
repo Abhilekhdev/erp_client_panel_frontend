@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { Info } from 'lucide-react';
+import { History, Info, Tags } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/common/DataTable';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { getStockReport, type StockReportFilters, type StockReportRow } from '../products.api';
+import { GroupPricesModal } from './GroupPricesModal';
 
 const qty = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 /** Transaction-derived figures come back null — say so rather than print a convincing 0. */
@@ -28,6 +31,8 @@ export function StockReportTab({
   onResetFilters,
   filtersActive,
 }: StockReportTabProps) {
+  const navigate = useNavigate();
+  const [groupPricesId, setGroupPricesId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const query = { ...filters, search, page, pageSize };
@@ -46,6 +51,42 @@ export function StockReportTab({
   const canSelling = data?.can.viewSellingPrice ?? false;
 
   const columns: Column<StockReportRow>[] = [
+    {
+      key: 'actions',
+      header: 'Action',
+      hideable: false,
+      render: (r) => (
+        <div className="flex gap-1.5">
+          {/* GOURI deep-links its history button to this exact location + variation. */}
+          {r.enableStock && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Product stock history"
+              onClick={() =>
+                navigate(
+                  `/products/${r.productId}/stock-history?variation_id=${r.variationId}${
+                    r.locationId ? `&location_id=${r.locationId}` : ''
+                  }`,
+                )
+              }
+            >
+              <History className="h-4 w-4" />
+            </Button>
+          )}
+          {canSelling && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="View group prices"
+              onClick={() => setGroupPricesId(r.productId)}
+            >
+              <Tags className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
     { key: 'sku', header: 'SKU', render: (r) => <span className="font-mono text-xs">{r.sku}</span> },
     {
       key: 'product',
@@ -170,9 +211,9 @@ export function StockReportTab({
       <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
         <p>
-          Stock moves with purchases, sales, transfers and adjustments — those arrive with the
-          transaction core, so every quantity reads 0 and <strong>Total sold / transferred / adjusted</strong>{' '}
-          show “—” until then. Combo products are excluded: their components hold the stock.
+          Stock, cost value and <strong>Total sold</strong> are live from purchases and returns.{' '}
+          <strong>Total transferred</strong> shows “—” until stock transfers are built. Combo products
+          are excluded: their components hold the stock.
         </p>
       </div>
 
@@ -198,6 +239,8 @@ export function StockReportTab({
         emptyMessage="No stock rows match these filters"
         columnsStorageKey="stock-report"
       />
+
+      <GroupPricesModal productId={groupPricesId} onClose={() => setGroupPricesId(null)} />
     </div>
   );
 }

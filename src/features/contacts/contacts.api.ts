@@ -58,3 +58,37 @@ export async function toggleContactStatus(id: number): Promise<{ contactStatus: 
 export async function deleteContact(id: number): Promise<void> {
   await api.delete(`/contacts/${id}`);
 }
+
+export interface ContactLedgerRow {
+  date: string;
+  refNo: string;
+  type: string;
+  label: string;
+  location: string;
+  paymentStatus: string | null;
+  method: string | null;
+  debit: number | null;
+  credit: number | null;
+  balance: number;
+  note: string;
+}
+
+export interface ContactLedger {
+  contact: { id: number; name: string; type: string };
+  openingBalance: number;
+  totalInvoice: number;
+  totalPurchase: number;
+  totalPaid: number;
+  advanceBalance: number;
+  /** Positive = the contact owes us; negative = we owe them. */
+  balanceDue: number;
+  rows: ContactLedgerRow[];
+}
+
+export async function getContactLedger(
+  id: number,
+  params: { dateFrom?: string; dateTo?: string; locationId?: number } = {},
+): Promise<ContactLedger> {
+  const { data } = await api.get<Envelope<ContactLedger>>(`/contacts/${id}/ledger`, { params });
+  return data.data;
+}

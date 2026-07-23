@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import { formatMoney } from '@/lib/currency';
+import { accountsDropdown } from '@/features/accounts/accounts.api';
 import {
   addPurchasePayment,
   deletePurchasePayment,
@@ -49,6 +50,7 @@ export function PurchasePaymentsModal({
   const [adding, setAdding] = useState(false);
 
   const { data: meta } = useQuery({ queryKey: ['purchase-meta'], queryFn: getPurchaseMeta });
+  const { data: accounts } = useQuery({ queryKey: ['accounts-dropdown'], queryFn: accountsDropdown });
   const { data: p, isLoading } = useQuery({
     queryKey: ['purchase', id],
     queryFn: () => getPurchase(id as number),
@@ -206,6 +208,25 @@ export function PurchasePaymentsModal({
                     ))}
                   </Select>
                 </div>
+                {(accounts ?? []).length > 0 && (
+                  <div>
+                    <Label htmlFor="pay-account">Payment account</Label>
+                    <Select
+                      id="pay-account"
+                      value={form.account_id ?? ''}
+                      onChange={(e) =>
+                        setForm({ ...form, account_id: e.target.value ? Number(e.target.value) : undefined })
+                      }
+                    >
+                      <option value="">— None —</option>
+                      {(accounts ?? []).map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {/* Only the fields that method actually needs — GOURI's payment_type_details. */}

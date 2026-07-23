@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import { BookText, Pencil, Plus, Power, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/common/DataTable';
@@ -137,15 +137,22 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
         header: cfg.dueLabel,
         className: 'text-right tabular-nums',
         headerClassName: 'text-right',
-        // Purchase due is real now; sale due waits on the Sells module.
-        render: (c) =>
-          listType === 'supplier' && c.totalPurchaseDue != null ? (
-            <span className={c.totalPurchaseDue > 0 ? 'text-destructive' : undefined}>
-              {formatMoney(c.totalPurchaseDue)}
-            </span>
+        // Both are live now — purchase due for suppliers, sale due for customers.
+        render: (c) => {
+          const due = listType === 'supplier' ? c.totalPurchaseDue : c.totalSaleDue;
+          return due != null ? (
+            <span className={due > 0 ? 'text-destructive' : undefined}>{formatMoney(due)}</span>
           ) : (
             <Pending />
-          ),
+          );
+        },
+      },
+      {
+        key: 'openingBalance',
+        header: 'Opening Balance',
+        className: 'text-right tabular-nums',
+        headerClassName: 'text-right',
+        render: (c) => (c.openingBalance ? formatMoney(c.openingBalance) : '—'),
       },
       {
         key: 'status',
@@ -165,7 +172,10 @@ export function ContactsListPage({ listType }: { listType: ContactListType }) {
         className: 'text-right',
         render: (c) => (
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(`${cfg.base}/${c.id}/edit`)}>
+            <Button variant="outline" size="sm" title="Ledger" onClick={() => navigate(`/contacts/${c.id}/ledger`)}>
+              <BookText className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" title="Edit" onClick={() => navigate(`${cfg.base}/${c.id}/edit`)}>
               <Pencil className="h-4 w-4" />
             </Button>
             <Button

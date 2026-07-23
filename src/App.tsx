@@ -4,6 +4,16 @@ import { AuthBootstrap } from '@/features/auth/AuthBootstrap';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RegisterPage } from '@/features/auth/pages/RegisterPage';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
+import { AccountsPage } from '@/features/accounts/pages/AccountsPage';
+import { AdjustmentFormPage } from '@/features/stock-adjustments/pages/AdjustmentFormPage';
+import { AdjustmentsListPage } from '@/features/stock-adjustments/pages/AdjustmentsListPage';
+import { TransferFormPage } from '@/features/stock-transfers/pages/TransferFormPage';
+import { TransfersListPage } from '@/features/stock-transfers/pages/TransfersListPage';
+import { WastageTypesPage } from '@/features/wastage-types/pages/WastageTypesPage';
+import { BalanceSheetPage } from '@/features/accounts/pages/BalanceSheetPage';
+import { CashFlowPage } from '@/features/accounts/pages/CashFlowPage';
+import { PaymentReportPage } from '@/features/accounts/pages/PaymentReportPage';
+import { TrialBalancePage } from '@/features/accounts/pages/TrialBalancePage';
 import { BusinessLocationsPage } from '@/features/business-locations/pages/BusinessLocationsPage';
 import { CalendarPage } from '@/features/calendar/pages/CalendarPage';
 import { BusinessSettingsPage } from '@/features/business-settings/pages/BusinessSettingsPage';
@@ -14,11 +24,15 @@ import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
 import { CustomerGroupsPage } from '@/features/customer-groups/pages/CustomerGroupsPage';
 import { ActivityLogPage } from '@/features/activity-log/pages/ActivityLogPage';
 import { ContactsImportPage } from '@/features/contacts/pages/ContactsImportPage';
+import { ContactLedgerPage } from '@/features/contacts/pages/ContactLedgerPage';
 import { LabelsPage } from '@/features/labels/pages/LabelsPage';
 import { LabelSheetsPage } from '@/features/labels/pages/LabelSheetsPage';
 import { InvoiceSettingsPage } from '@/features/invoice-schemes/pages/InvoiceSettingsPage';
 import { CommissionAgentFormPage } from '@/features/commission-agents/pages/CommissionAgentFormPage';
 import { CommissionAgentsListPage } from '@/features/commission-agents/pages/CommissionAgentsListPage';
+import { ExpenseCategoriesPage } from '@/features/expense-categories/pages/ExpenseCategoriesPage';
+import { ExpenseFormPage } from '@/features/expenses/pages/ExpenseFormPage';
+import { ExpensesListPage } from '@/features/expenses/pages/ExpensesListPage';
 import { ActivityCodesPage } from '@/features/hrm/pages/ActivityCodesPage';
 import { AttendancePage } from '@/features/hrm/pages/AttendancePage';
 import { DepartmentsPage } from '@/features/hrm/pages/DepartmentsPage';
@@ -33,6 +47,13 @@ import { SalesTargetsPage } from '@/features/hrm/pages/SalesTargetsPage';
 import { NotificationTemplatesPage } from '@/features/notification-templates/pages/NotificationTemplatesPage';
 import { ProductFormPage } from '@/features/products/pages/ProductFormPage';
 import { ProductsListPage } from '@/features/products/pages/ProductsListPage';
+import { StockHistoryPage } from '@/features/products/pages/StockHistoryPage';
+import { ProductImportPage } from '@/features/products/pages/ProductImportPage';
+import { OpeningStockImportPage } from '@/features/products/pages/OpeningStockImportPage';
+import {
+  ProfitLossPage, PurchaseSalePage, TaxReportPage, StockReportPage, TrendingProductsPage,
+  ItemsReportPage, ExpenseReportPage, SalesRepPage, CustomerSupplierPage, RegisterReportPage,
+} from '@/features/reports/pages/ReportPages';
 import { RoleFormPage } from '@/features/roles/pages/RoleFormPage';
 import { RolesListPage } from '@/features/roles/pages/RolesListPage';
 import { SellingPriceGroupsPage } from '@/features/selling-price-groups/pages/SellingPriceGroupsPage';
@@ -45,7 +66,6 @@ import { UsersListPage } from '@/features/users/pages/UsersListPage';
 import { UserViewPage } from '@/features/users/pages/UserViewPage';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
-import { ComingSoonPage } from '@/pages/ComingSoonPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { PurchaseFormPage } from '@/features/purchases/pages/PurchaseFormPage';
 import { PurchasesListPage } from '@/features/purchases/pages/PurchasesListPage';
@@ -55,6 +75,14 @@ import { PurchaseOrderFormPage } from '@/features/purchase-orders/pages/Purchase
 import { PurchaseOrdersListPage } from '@/features/purchase-orders/pages/PurchaseOrdersListPage';
 import { ReturnFormPage } from '@/features/purchase-returns/pages/ReturnFormPage';
 import { ReturnsListPage } from '@/features/purchase-returns/pages/ReturnsListPage';
+import { SalesListPage } from '@/features/sells/pages/SalesListPage';
+import { SellFormPage } from '@/features/sells/pages/SellFormPage';
+import { SalesOrdersListPage } from '@/features/sales-orders/pages/SalesOrdersListPage';
+import { SalesOrderFormPage } from '@/features/sales-orders/pages/SalesOrderFormPage';
+import { SellReturnsListPage } from '@/features/sell-returns/pages/SellReturnsListPage';
+import { SellReturnFormPage } from '@/features/sell-returns/pages/SellReturnFormPage';
+import { ClaimsPage } from '@/features/hrm/pages/ClaimsPage';
+import { ClaimCategoriesPage } from '@/features/hrm/pages/ClaimCategoriesPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -63,12 +91,17 @@ const CUSTOM_ROUTES = new Set([
   '/roles',
   '/users',
   '/commission-agents',
+  '/expenses',
+  '/expenses/create',
+  '/expense-categories',
   '/suppliers',
   '/customers',
   '/customer-groups',
   '/contacts/import',
+  '/contacts/:id/ledger',
   '/products',
   '/products/create',
+  '/products/:id/stock-history',
   '/labels',
   '/settings/label-sheets',
   '/products/import',
@@ -79,7 +112,23 @@ const CUSTOM_ROUTES = new Set([
   '/purchase-orders',
   '/purchase-orders/create',
   '/purchase-returns',
+  '/sales',
+  '/sales/create',
+  '/sales-orders',
+  '/sales-orders/create',
+  '/sell-returns',
   '/reports/activity-log',
+  '/reports/profit-loss',
+  '/reports/purchase-sale',
+  '/reports/tax',
+  '/reports/stock',
+  '/reports/trending',
+  '/reports/items',
+  '/reports/register',
+  '/reports/expense',
+  '/reports/sales-rep',
+  '/reports/customer-supplier',
+
   '/units',
   '/categories',
   '/brands',
@@ -103,6 +152,18 @@ const CUSTOM_ROUTES = new Set([
   '/hrm/payroll',
   '/hrm/sales-targets',
   '/hrm/settings',
+  '/claims',
+  '/claim-categories',
+  '/accounts',
+  '/accounts/balance-sheet',
+  '/accounts/trial-balance',
+  '/accounts/cash-flow',
+  '/accounts/payment-report',
+  '/stock-transfers',
+  '/stock-transfers/create',
+  '/stock-adjustments',
+  '/stock-adjustments/create',
+  '/settings/wastage-types',
 ]);
 
 // Flatten the sidebar config into concrete routes (every remaining destination gets a scaffold page).
@@ -139,6 +200,12 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
 
+            {/* Expenses — real module (transactions type=expense) */}
+            <Route path="/expenses" element={<ExpensesListPage />} />
+            <Route path="/expenses/create" element={<ExpenseFormPage />} />
+            <Route path="/expenses/:id/edit" element={<ExpenseFormPage />} />
+            <Route path="/expense-categories" element={<ExpenseCategoriesPage />} />
+
             {/* Commission Agents — real module (users with is_cmmsn_agnt) */}
             <Route path="/commission-agents" element={<CommissionAgentsListPage />} />
             <Route path="/commission-agents/create" element={<CommissionAgentFormPage />} />
@@ -159,11 +226,13 @@ export function App() {
             <Route path="/customers/:id/edit" element={<ContactFormPage listType="customer" />} />
             <Route path="/customer-groups" element={<CustomerGroupsPage />} />
             <Route path="/contacts/import" element={<ContactsImportPage />} />
+            <Route path="/contacts/:id/ledger" element={<ContactLedgerPage />} />
 
             {/* Products — core module */}
             <Route path="/products" element={<ProductsListPage />} />
             <Route path="/products/create" element={<ProductFormPage />} />
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
+            <Route path="/products/:id/stock-history" element={<StockHistoryPage />} />
             <Route path="/labels" element={<LabelsPage />} />
             <Route path="/settings/label-sheets" element={<LabelSheetsPage />} />
 
@@ -180,38 +249,33 @@ export function App() {
             <Route path="/purchase-returns/create" element={<ReturnFormPage />} />
             <Route path="/purchase-returns/:id/edit" element={<ReturnFormPage />} />
 
-            {/* Both imports write opening stock, so they wait for the transaction core. An honest
-                placeholder beats the generic list scaffold, which looked like a broken feature. */}
-            <Route
-              path="/products/import"
-              element={
-                <ComingSoonPage
-                  title="Import Products"
-                  description="Bulk-create products from a spreadsheet."
-                  blockedBy="The product import sheet includes opening stock, its location and expiry date. Those columns need the stock ledger, which arrives with Purchases. Building it now would mean shipping an import that silently drops three of its columns — so it lands complete, with the transaction core."
-                  alternatives={[
-                    { label: 'Add a product', to: '/products/create' },
-                    { label: 'Import contacts instead', to: '/contacts/import' },
-                  ]}
-                  breadcrumbs={[{ label: 'Products' }, { label: 'Import Products' }]}
-                />
-              }
-            />
-            <Route
-              path="/opening-stock/import"
-              element={
-                <ComingSoonPage
-                  title="Import Opening Stock"
-                  description="Set starting quantities for many products at once."
-                  blockedBy="Opening stock is recorded as a stock transaction against a location. That ledger arrives with Purchases, so this import is built alongside it."
-                  alternatives={[{ label: 'Back to products', to: '/products' }]}
-                  breadcrumbs={[{ label: 'Products' }, { label: 'Import Opening Stock' }]}
-                />
-              }
-            />
+            {/* Sell — the sell side of the transaction core */}
+            <Route path="/sales" element={<SalesListPage />} />
+            <Route path="/sales/create" element={<SellFormPage />} />
+            <Route path="/sales/:id/edit" element={<SellFormPage />} />
+            <Route path="/sales-orders" element={<SalesOrdersListPage />} />
+            <Route path="/sales-orders/create" element={<SalesOrderFormPage />} />
+            <Route path="/sales-orders/:id/edit" element={<SalesOrderFormPage />} />
+            <Route path="/sell-returns" element={<SellReturnsListPage />} />
+            <Route path="/sell-returns/create" element={<SellReturnFormPage />} />
+
+            <Route path="/products/import" element={<ProductImportPage />} />
+            <Route path="/opening-stock/import" element={<OpeningStockImportPage />} />
 
             {/* Reports */}
             <Route path="/reports/activity-log" element={<ActivityLogPage />} />
+            {/* Reports — real module */}
+            <Route path="/reports/profit-loss" element={<ProfitLossPage />} />
+            <Route path="/reports/purchase-sale" element={<PurchaseSalePage />} />
+            <Route path="/reports/tax" element={<TaxReportPage />} />
+            <Route path="/reports/stock" element={<StockReportPage />} />
+            <Route path="/reports/trending" element={<TrendingProductsPage />} />
+            <Route path="/reports/items" element={<ItemsReportPage />} />
+            <Route path="/reports/register" element={<RegisterReportPage />} />
+            <Route path="/reports/expense" element={<ExpenseReportPage />} />
+            <Route path="/reports/sales-rep" element={<SalesRepPage />} />
+            <Route path="/reports/customer-supplier" element={<CustomerSupplierPage />} />
+
 
             {/* Products — catalog prerequisites */}
             <Route path="/units" element={<UnitsPage />} />
@@ -221,6 +285,20 @@ export function App() {
             <Route path="/warranties" element={<WarrantiesPage />} />
             <Route path="/selling-price-groups" element={<SellingPriceGroupsPage />} />
             <Route path="/settings/tax-rates" element={<TaxRatesPage />} />
+
+            {/* Payment Accounts — real module */}
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/accounts/balance-sheet" element={<BalanceSheetPage />} />
+            <Route path="/accounts/trial-balance" element={<TrialBalancePage />} />
+            <Route path="/accounts/cash-flow" element={<CashFlowPage />} />
+            <Route path="/accounts/payment-report" element={<PaymentReportPage />} />
+
+            {/* Stock Transfers / Adjustments + Wastage Types — real modules */}
+            <Route path="/stock-transfers" element={<TransfersListPage />} />
+            <Route path="/stock-transfers/create" element={<TransferFormPage />} />
+            <Route path="/stock-adjustments" element={<AdjustmentsListPage />} />
+            <Route path="/stock-adjustments/create" element={<AdjustmentFormPage />} />
+            <Route path="/settings/wastage-types" element={<WastageTypesPage />} />
 
             {/* Business Settings — real module */}
             <Route path="/settings/business" element={<BusinessSettingsPage />} />
@@ -249,6 +327,10 @@ export function App() {
             <Route path="/hrm/payroll" element={<PayrollPage />} />
             <Route path="/hrm/sales-targets" element={<SalesTargetsPage />} />
             <Route path="/hrm/settings" element={<HrmSettingsPage />} />
+
+            {/* Claims & Reimbursement — Essentials module */}
+            <Route path="/claims" element={<ClaimsPage />} />
+            <Route path="/claim-categories" element={<ClaimCategoriesPage />} />
 
             {/* Roles — real module */}
             <Route path="/roles" element={<RolesListPage />} />

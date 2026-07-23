@@ -68,7 +68,7 @@ function hydrate(c: ContactDetail): FormState {
     supplierBusinessName: c.supplierBusinessName, prefix: c.prefix, firstName: c.firstName,
     middleName: c.middleName, lastName: c.lastName, contactId: c.contactId,
     mobile: c.mobile, alternateNumber: c.alternateNumber, landline: c.landline, email: c.email,
-    dob: c.dob, taxNumber: c.taxNumber, openingBalance: '0',
+    dob: c.dob, taxNumber: c.taxNumber, openingBalance: c.openingBalance != null ? String(c.openingBalance) : '0',
     payTermNumber: c.payTermNumber != null ? String(c.payTermNumber) : '',
     payTermType: c.payTermType ?? 'months',
     creditLimit: c.creditLimit != null ? String(c.creditLimit) : '',
@@ -98,6 +98,7 @@ function toBody(f: FormState): ContactFormBody {
     pay_term_number: f.payTermNumber === '' ? null : Number(f.payTermNumber),
     pay_term_type: f.payTermNumber === '' ? null : f.payTermType,
     credit_limit: f.creditLimit === '' ? null : Number(f.creditLimit),
+    opening_balance: f.openingBalance === '' ? 0 : Number(f.openingBalance),
     mobile: f.mobile,
     landline: f.landline || null,
     alternate_number: f.alternateNumber || null,
@@ -310,9 +311,15 @@ export function ContactFormPage({ listType }: { listType: ContactListType }) {
         </Field>
         <Field
           label="Opening balance"
-          hint="Available once the Sales/Purchase module is built"
+          hint="What this contact already owed you (customer) or you owed them (supplier) at start"
         >
-          <Input value={form.openingBalance} disabled />
+          <Input
+            type="number"
+            step="0.0001"
+            min="0"
+            value={form.openingBalance}
+            onChange={(e) => set('openingBalance', e.target.value)}
+          />
         </Field>
         <Field label="Pay term">
           <div className="flex gap-2">
