@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { PaymentMethodFields } from '@/components/common/PaymentMethodFields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -230,55 +231,19 @@ export function PurchasePaymentsModal({
               </div>
 
               {/* Only the fields that method actually needs — GOURI's payment_type_details. */}
-              {method === 'card' && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field
-                    label="Card holder name"
-                    value={form.card_holder_name ?? ''}
-                    onChange={(v) => setForm({ ...form, card_holder_name: v })}
-                  />
-                  <Field
-                    label="Card transaction no."
-                    value={form.card_transaction_number ?? ''}
-                    onChange={(v) => setForm({ ...form, card_transaction_number: v })}
-                  />
-                  <div>
-                    <Label htmlFor="card-type">Card type</Label>
-                    <Select
-                      id="card-type"
-                      value={form.card_type ?? ''}
-                      onChange={(e) => setForm({ ...form, card_type: e.target.value })}
-                    >
-                      <option value="">Select</option>
-                      <option value="credit">Credit Card</option>
-                      <option value="debit">Debit Card</option>
-                      <option value="visa">Visa</option>
-                      <option value="master">MasterCard</option>
-                    </Select>
-                  </div>
-                </div>
-              )}
-              {method === 'cheque' && (
-                <Field
-                  label="Cheque no."
-                  value={form.cheque_number ?? ''}
-                  onChange={(v) => setForm({ ...form, cheque_number: v })}
-                />
-              )}
-              {method === 'bank_transfer' && (
-                <Field
-                  label="Bank account number"
-                  value={form.bank_account_number ?? ''}
-                  onChange={(v) => setForm({ ...form, bank_account_number: v })}
-                />
-              )}
-              {method === 'other' && (
-                <Field
-                  label="Transaction no."
-                  value={form.transaction_no ?? ''}
-                  onChange={(v) => setForm({ ...form, transaction_no: v })}
-                />
-              )}
+              <PaymentMethodFields
+                idPrefix="purchase-pay"
+                values={{
+                  method,
+                  card_holder_name: form.card_holder_name,
+                  card_transaction_number: form.card_transaction_number,
+                  card_type: form.card_type,
+                  cheque_number: form.cheque_number,
+                  bank_account_number: form.bank_account_number,
+                  transaction_no: form.transaction_no,
+                }}
+                onChange={(patch) => setForm({ ...form, ...patch })}
+              />
 
               <div>
                 <Label htmlFor="pay-note">Payment note</Label>
@@ -313,23 +278,6 @@ function Tile({ label, value, danger }: { label: string; value: string; danger?:
       <div className={`text-base font-semibold tabular-nums ${danger ? 'text-destructive' : ''}`}>
         {value}
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

@@ -1,22 +1,25 @@
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, UserCircle, X } from 'lucide-react';
 import { HeaderShortcuts } from '@/components/layout/HeaderShortcuts';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { useEffect, useRef, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/useAuth';
+import { fileUrl } from '@/lib/fileUrl';
 import { cn } from '@/lib/utils';
 
 export function AppLayout() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const fullName = [user?.surname, user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
   const displayName = fullName || user?.email || 'User';
   const role = user?.isBusinessAdmin ? 'Super Admin' : (user?.roles?.[0] ?? 'Member');
+  const avatarUrl = fileUrl(user?.avatar);
 
   // Close the user dropdown on outside click.
   useEffect(() => {
@@ -80,9 +83,13 @@ export function AppLayout() {
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
               >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                  {(user?.firstName?.[0] ?? displayName[0] ?? 'U').toUpperCase()}
-                </span>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="h-8 w-8 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {(user?.firstName?.[0] ?? displayName[0] ?? 'U').toUpperCase()}
+                  </span>
+                )}
                 <span className="hidden text-left sm:block">
                   <span className="block text-sm font-medium leading-tight text-foreground">{displayName}</span>
                   <span className="block text-[11px] leading-tight text-muted-foreground">{role}</span>
@@ -98,6 +105,17 @@ export function AppLayout() {
                     <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
                     <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    className="flex w-full items-center gap-2 border-b px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    <UserCircle className="h-4 w-4" />
+                    Profile
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

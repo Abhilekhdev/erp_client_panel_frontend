@@ -39,6 +39,7 @@ import {
   SlidersHorizontal,
   Store,
   Table2,
+  ChefHat,
   Tag,
   Tags,
   TrendingUp,
@@ -286,6 +287,7 @@ export const NAVIGATION: NavEntry[] = [
     ],
   },
 
+  { label: 'Kitchen', icon: ChefHat, to: '/kitchen', permissions: ['sell.view', 'sell.create', 'access_tables'] },
   { label: 'Orders', icon: ClipboardList, to: '/orders', permissions: ['sell.view', 'direct_sell.view', 'view_own_sell_only'] },
 
   { label: 'Notification Templates', icon: Mail, to: '/notification-templates', permission: 'send_notification', section: 'setup' },

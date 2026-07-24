@@ -84,9 +84,13 @@ import { SellReturnsListPage } from '@/features/sell-returns/pages/SellReturnsLi
 import { SellReturnFormPage } from '@/features/sell-returns/pages/SellReturnFormPage';
 import { ClaimsPage } from '@/features/hrm/pages/ClaimsPage';
 import { ClaimCategoriesPage } from '@/features/hrm/pages/ClaimCategoriesPage';
+import { ProfilePage } from '@/features/auth/pages/ProfilePage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PosLayout } from '@/layouts/PosLayout';
+import { TablesPage } from '@/features/restaurant/pages/TablesPage';
+import { KitchenPage } from '@/features/restaurant/pages/KitchenPage';
+import { OrdersPage } from '@/features/restaurant/pages/OrdersPage';
 
 // Routes that have real, purpose-built pages (excluded from the generic ModulePage fallback).
 const CUSTOM_ROUTES = new Set([
@@ -121,6 +125,9 @@ const CUSTOM_ROUTES = new Set([
   '/sales-orders',
   '/sales-orders/create',
   '/sell-returns',
+  '/settings/tables',
+  '/kitchen',
+  '/orders',
   '/reports/activity-log',
   '/reports/profit-loss',
   '/reports/purchase-sale',
@@ -263,6 +270,11 @@ export function App() {
             <Route path="/sales-orders/create" element={<SalesOrderFormPage />} />
             <Route path="/sales-orders/:id/edit" element={<SalesOrderFormPage />} />
             <Route path="/sell-returns" element={<SellReturnsListPage />} />
+
+            {/* Restaurant — tables + kitchen/orders workflow */}
+            <Route path="/settings/tables" element={<TablesPage />} />
+            <Route path="/kitchen" element={<KitchenPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
             <Route path="/sell-returns/create" element={<SellReturnFormPage />} />
 
             <Route path="/products/import" element={<ProductImportPage />} />
@@ -337,6 +349,9 @@ export function App() {
             {/* Claims & Reimbursement — Essentials module */}
             <Route path="/claims" element={<ClaimsPage />} />
             <Route path="/claim-categories" element={<ClaimCategoriesPage />} />
+
+            {/* My Profile — self-service (GOURI /user/profile) */}
+            <Route path="/profile" element={<ProfilePage />} />
 
             {/* Roles — real module */}
             <Route path="/roles" element={<RolesListPage />} />

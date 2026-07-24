@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { PaymentMethodFields } from '@/components/common/PaymentMethodFields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -216,6 +217,19 @@ export function ReturnRefundModal({
                   </Select>
                 </div>
               </div>
+              <PaymentMethodFields
+                idPrefix="preturn-refund"
+                values={{
+                  method: form.method,
+                  card_holder_name: form.card_holder_name,
+                  card_transaction_number: form.card_transaction_number,
+                  card_type: form.card_type,
+                  cheque_number: form.cheque_number,
+                  bank_account_number: form.bank_account_number,
+                  transaction_no: form.transaction_no,
+                }}
+                onChange={(patch) => setForm({ ...form, ...patch })}
+              />
               <div>
                 <Label htmlFor="note">Note</Label>
                 <Textarea id="note" rows={2} value={form.note ?? ''} onChange={(e) => setForm({ ...form, note: e.target.value })} />

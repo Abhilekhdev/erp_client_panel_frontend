@@ -24,7 +24,9 @@ import { PosWeighingScaleModal } from '../components/PosWeighingScaleModal';
 import { PosCalculatorModal } from '../components/PosCalculatorModal';
 import { PosRegisterOpenModal, PosRegisterDetailsModal, PosRegisterCloseModal } from '../components/PosRegisterModals';
 import { getCurrentRegister } from '../cash-register.api';
+import { listTables, listServiceStaff } from '@/features/restaurant/restaurant.api';
 import { isFunctionKey, matchShortcut } from '../pos-shortcuts';
+import { PaymentMethodFields, type PaymentMethodValues } from '@/components/common/PaymentMethodFields';
 import {
   createSell,
   getSell,
@@ -43,12 +45,14 @@ const today = () => new Date().toISOString().slice(0, 10);
 /** One payment row in the multi-pay modal. Numeric fields are strings so half-typed input holds. */
 interface PayRow {
   amount: string;
-  method: string;
   accountId: string;
   paidOn: string;
-  ref: string;
+  /** Method + its detail fields, shaped for the shared PaymentMethodFields component. */
+  detail: PaymentMethodValues;
 }
-const emptyPay = (amount: string, method = 'cash'): PayRow => ({ amount, method, accountId: '', paidOn: today(), ref: '' });
+const emptyPay = (amount: string, method = 'cash'): PayRow => ({
+  amount, accountId: '', paidOn: today(), detail: { method },
+});
 
 /**
  * The point-of-sale screen — GOURI's `pos.create`. A fast one-page till: pre-selected walk-in
@@ -69,6 +73,8 @@ export function PosPage() {
   const [contactId, setContactId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [priceGroupId, setPriceGroupId] = useState('');
+  const [resTableId, setResTableId] = useState('');
+  const [resWaiterId, setResWaiterId] = useState('');
   const [gridCategory, setGridCategory] = useState('');
   const [gridBrand, setGridBrand] = useState('');
   const [payModal, setPayModal] = useState<{ status: 'final'; label: string } | null>(null);
@@ -79,6 +85,20 @@ export function PosPage() {
 
   // Is a cash register open? GOURI wants one open before selling; we surface it and prompt.
   const { data: register } = useQuery({ queryKey: ['register-current'], queryFn: getCurrentRegister });
+
+  // Restaurant: dining tables + waiters, only when the modules are on and a location is chosen.
+  const restaurant = meta?.restaurant;
+  const locNum = locationId ? Number(locationId) : undefined;
+  const { data: resTables = [] } = useQuery({
+    queryKey: ['res-tables', locNum],
+    queryFn: () => listTables(locNum),
+    enabled: Boolean(restaurant?.tablesEnabled && locNum),
+  });
+  const { data: waiters = [] } = useQuery({
+    queryKey: ['res-service-staff', locNum],
+    queryFn: () => listServiceStaff(locNum),
+    enabled: Boolean((restaurant?.serviceStaffEnabled || restaurant?.inlineServiceStaff) && locNum),
+  });
 
   const form = useSellForm(meta);
 
@@ -95,6 +115,7 @@ export function PosPage() {
     form.lines.forEach((l) => form.removeLine(l.id));
     form.setDiscountType(''); form.setDiscountAmount('0'); form.setTaxRateId(null); form.setShippingCharges('0');
     setEditId(null); setPriceGroupId('');
+    setResTableId(''); setResWaiterId('');
     setPayModal(null);
     if (meta?.defaultCustomerId != null) setContactId(String(meta.defaultCustomerId));
   };
@@ -123,6 +144,8 @@ export function PosPage() {
     status,
     sub_status: opts?.subStatus,
     is_suspend: opts?.isSuspend ?? false,
+    res_table_id: resTableId ? Number(resTableId) : undefined,
+    res_waiter_id: resWaiterId ? Number(resWaiterId) : undefined,
     discount_type: form.discountType || undefined,
     discount_amount: Number(form.discountAmount) || 0,
     tax_rate_id: form.taxRateId ?? undefined,
@@ -136,6 +159,7 @@ export function PosPage() {
       line_discount_type: l.lineDiscountType || undefined,
       line_discount_amount: Number(l.lineDiscountAmount) || 0,
       tax_rate_id: l.taxRateId ?? undefined,
+      res_service_staff_id: l.resServiceStaffId ?? undefined,
     })),
   });
 
@@ -320,6 +344,24 @@ export function PosPage() {
                 </Select>
               </div>
             )}
+            {meta.restaurant.tablesEnabled && (
+              <div>
+                <Label htmlFor="pos-table">Table</Label>
+                <Select id="pos-table" value={resTableId} onChange={(e) => setResTableId(e.target.value)}>
+                  <option value="">Select table</option>
+                  {resTables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </Select>
+              </div>
+            )}
+            {meta.restaurant.serviceStaffEnabled && (
+              <div>
+                <Label htmlFor="pos-waiter">Service staff{meta.restaurant.isServiceStaffRequired ? ' *' : ''}</Label>
+                <Select id="pos-waiter" value={resWaiterId} onChange={(e) => setResWaiterId(e.target.value)}>
+                  <option value="">Select staff</option>
+                  {waiters.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </Select>
+              </div>
+            )}
             <div className={meta.priceGroups.length > 0 ? '' : 'md:col-span-1'}>
               <Label>Product</Label>
               <SellProductSearchBox
@@ -355,6 +397,8 @@ export function PosPage() {
                   line={l}
                   canEditPrice={canEditPrice}
                   canEditDiscount={canEditDiscount}
+                  inlineStaff={meta.restaurant.inlineServiceStaff}
+                  waiters={waiters}
                   onChange={(patch) => form.updateLine(l.id, patch)}
                   onRemove={() => form.removeLine(l.id)}
                 />
@@ -434,6 +478,7 @@ export function PosPage() {
         <PosPaymentModal
           total={form.totals.finalTotal}
           methods={meta.paymentMethods}
+          accounts={meta.accounts}
           pending={save.isPending}
           onClose={() => setPayModal(null)}
           onConfirm={finalizeWithPayments}
@@ -495,11 +540,13 @@ export function PosPage() {
 
 /** A single cart line — name, +/- quantity stepper, editable inc-tax price, subtotal. */
 function CartRow({
-  line, canEditPrice, canEditDiscount, onChange, onRemove,
+  line, canEditPrice, canEditDiscount, inlineStaff, waiters, onChange, onRemove,
 }: {
   line: SellLineRow;
   canEditPrice: boolean;
   canEditDiscount: boolean;
+  inlineStaff: boolean;
+  waiters: { id: number; name: string }[];
   onChange: (patch: Partial<SellLineRow>) => void;
   onRemove: () => void;
 }) {
@@ -526,6 +573,17 @@ function CartRow({
               disabled={!line.lineDiscountType} className="h-7 w-24 text-xs"
             />
           </div>
+        )}
+        {/* Per-line service staff (GOURI's inline_service_staff column). */}
+        {inlineStaff && (
+          <Select
+            value={line.resServiceStaffId ?? ''}
+            onChange={(e) => onChange({ resServiceStaffId: e.target.value ? Number(e.target.value) : null })}
+            className="mt-1 h-7 w-full text-xs"
+          >
+            <option value="">Service staff…</option>
+            {waiters.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </Select>
         )}
       </td>
       <td className="px-3 py-2">
@@ -566,12 +624,13 @@ function CartRow({
   );
 }
 
-/** Multi-line payment modal with change-return, GOURI's `#modal_payment`. */
+/** Multi-line payment modal with change-return + per-method detail fields, GOURI's `#modal_payment`. */
 function PosPaymentModal({
-  total, methods, pending, onClose, onConfirm,
+  total, methods, accounts, pending, onClose, onConfirm,
 }: {
   total: number;
   methods: { value: string; label: string }[];
+  accounts: { id: number; name: string }[];
   pending: boolean;
   onClose: () => void;
   onConfirm: (payments: SavePaymentBody[]) => void;
@@ -596,10 +655,15 @@ function PosPaymentModal({
       if (applied <= 0) break;
       payments.push({
         amount: applied,
-        method: r.method,
+        method: r.detail.method,
         account_id: r.accountId ? Number(r.accountId) : undefined,
         paid_on: r.paidOn,
-        transaction_no: r.ref || undefined,
+        card_holder_name: r.detail.card_holder_name || undefined,
+        card_transaction_number: r.detail.card_transaction_number || undefined,
+        card_type: r.detail.card_type || undefined,
+        cheque_number: r.detail.cheque_number || undefined,
+        bank_account_number: r.detail.bank_account_number || undefined,
+        transaction_no: r.detail.transaction_no || undefined,
       });
       remaining = round4(remaining - applied);
     }
@@ -611,22 +675,41 @@ function PosPaymentModal({
       <div className="space-y-4">
         <div className="space-y-3">
           {rows.map((r, i) => (
-            <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end rounded-lg border p-3">
-              <div>
-                <Label>Amount</Label>
-                <Input type="number" step="0.0001" min="0" value={r.amount} onChange={(e) => patch(i, { amount: e.target.value })} />
+            <div key={i} className="space-y-2 rounded-lg border p-3">
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <div>
+                  <Label>Amount</Label>
+                  <Input type="number" step="0.0001" min="0" value={r.amount} onChange={(e) => patch(i, { amount: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Method</Label>
+                  <Select value={r.detail.method} onChange={(e) => patch(i, { detail: { ...r.detail, method: e.target.value } })}>
+                    {methods.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </Select>
+                </div>
+                <Button type="button" variant="destructive" size="sm" disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
               </div>
-              <div>
-                <Label>Method</Label>
-                <Select value={r.method} onChange={(e) => patch(i, { method: e.target.value })}>
-                  {methods.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </Select>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <Label>Paid on</Label>
+                  <Input type="date" value={r.paidOn} onChange={(e) => patch(i, { paidOn: e.target.value })} />
+                </div>
+                {accounts.length > 0 && (
+                  <div>
+                    <Label>Deposit to</Label>
+                    <Select value={r.accountId} onChange={(e) => patch(i, { accountId: e.target.value })}>
+                      <option value="">None</option>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </Select>
+                  </div>
+                )}
               </div>
-              <div>
-                <Label>Reference</Label>
-                <Input value={r.ref} onChange={(e) => patch(i, { ref: e.target.value })} placeholder="Optional" />
-              </div>
-              <Button type="button" variant="destructive" size="sm" disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+              {/* Per-method detail fields (card/cheque/bank/other) — shared with every other payment UI. */}
+              <PaymentMethodFields
+                idPrefix={`pos-pay-${i}`}
+                values={r.detail}
+                onChange={(p) => patch(i, { detail: { ...r.detail, ...p } })}
+              />
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={() => setRows([...rows, emptyPay('0')])}><Plus className="h-4 w-4" />Add payment line</Button>

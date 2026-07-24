@@ -24,6 +24,8 @@ export interface SellLineRow {
   lineDiscountType: '' | 'fixed' | 'percentage';
   lineDiscountAmount: string;
   taxRateId: number | null;
+  /** Restaurant: per-line service staff (waiter). */
+  resServiceStaffId: number | null;
   calc: CalculatedSellLine;
 }
 
@@ -86,6 +88,7 @@ export function useSellForm(meta: SellMeta | undefined) {
           lineDiscountType: '',
           lineDiscountAmount: '0',
           taxRateId: hit.taxRateId,
+          resServiceStaffId: null,
           calc: calcSellLine({ quantity: extra?.quantity ?? 1, unitPrice: price, taxPercent: 0 }),
         };
         return [...prev, recalc(row)];
@@ -133,6 +136,7 @@ export function useSellForm(meta: SellMeta | undefined) {
             lineDiscountType: l.lineDiscountType ?? '',
             lineDiscountAmount: str(l.lineDiscountAmount),
             taxRateId: l.taxRateId,
+            resServiceStaffId: null,
             calc: calcSellLine({ quantity: l.quantity, unitPrice: l.unitPrice, taxPercent: 0 }),
           };
           return recalc(row);

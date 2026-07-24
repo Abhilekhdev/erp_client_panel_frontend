@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { usePermissions } from '@/features/auth/usePermission';
 import { getApiErrorMessage } from '@/lib/api/axios';
 import { formatMoney } from '@/lib/currency';
+import { PaymentMethodFields } from '@/components/common/PaymentMethodFields';
 import { addSellPayment, deleteSellPayment, getSell, getSellMeta, type SavePaymentBody } from '../sells.api';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -92,6 +93,19 @@ export function SellPaymentsModal({ id, onClose, onChanged }: { id: number | nul
                 <div><Label htmlFor="on">Received on</Label><Input id="on" type="date" value={form.paid_on} onChange={(e) => setForm({ ...form, paid_on: e.target.value })} /></div>
                 <div><Label htmlFor="m">Method *</Label><Select id="m" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>{(meta?.paymentMethods ?? [{ value: 'cash', label: 'Cash' }]).map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</Select></div>
               </div>
+              <PaymentMethodFields
+                idPrefix="sell-pay"
+                values={{
+                  method: form.method,
+                  card_holder_name: form.card_holder_name,
+                  card_transaction_number: form.card_transaction_number,
+                  card_type: form.card_type,
+                  cheque_number: form.cheque_number,
+                  bank_account_number: form.bank_account_number,
+                  transaction_no: form.transaction_no,
+                }}
+                onChange={(patch) => setForm({ ...form, ...patch })}
+              />
               <div><Label htmlFor="note">Note</Label><Textarea id="note" rows={2} value={form.note ?? ''} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
               <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setAdding(false)}>Cancel</Button><Button type="submit" size="sm" disabled={add.isPending}>{add.isPending ? 'Saving…' : 'Save payment'}</Button></div>
             </form>

@@ -121,6 +121,9 @@ export interface SaveRefundBody {
   amount: number;
   method: string;
   paid_on?: string;
+  card_holder_name?: string;
+  card_transaction_number?: string;
+  card_type?: string;
   cheque_number?: string;
   bank_account_number?: string;
   transaction_no?: string;

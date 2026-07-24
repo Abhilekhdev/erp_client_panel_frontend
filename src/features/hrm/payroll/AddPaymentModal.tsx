@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { PaymentMethodFields } from '@/components/common/PaymentMethodFields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,11 @@ interface RowState {
   paidOn: string;
   note: string;
   chequeNumber: string;
+  cardHolderName: string;
+  cardTransactionNumber: string;
+  cardType: string;
+  bankAccountNumber: string;
+  transactionNo: string;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -62,6 +68,11 @@ export function AddPaymentModal({
         paidOn: today(),
         note: '',
         chequeNumber: '',
+        cardHolderName: '',
+        cardTransactionNumber: '',
+        cardType: '',
+        bankAccountNumber: '',
+        transactionNo: '',
       };
     });
     setRows(next);
@@ -84,6 +95,11 @@ export function AddPaymentModal({
             paid_on: r.paidOn,
             note: r.note || null,
             cheque_number: r.method === 'cheque' ? r.chequeNumber || null : null,
+            card_holder_name: r.method === 'card' ? r.cardHolderName || null : null,
+            card_transaction_number: r.method === 'card' ? r.cardTransactionNumber || null : null,
+            card_type: r.method === 'card' ? r.cardType || null : null,
+            bank_account_number: r.method === 'bank_transfer' ? r.bankAccountNumber || null : null,
+            transaction_no: r.method === 'other' ? r.transactionNo || null : null,
           };
         });
       return addPayrollPayments(payments);
@@ -206,23 +222,41 @@ export function AddPaymentModal({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor={`n-${p.payrollId}`}>
-                        {r.method === 'cheque' ? 'Cheque number' : 'Note'}
-                      </Label>
+                      <Label htmlFor={`n-${p.payrollId}`}>Note</Label>
                       <Input
                         id={`n-${p.payrollId}`}
-                        value={r.method === 'cheque' ? r.chequeNumber : r.note}
+                        value={r.note}
                         disabled={!r.include}
-                        onChange={(e) =>
-                          set(
-                            p.payrollId,
-                            r.method === 'cheque'
-                              ? { chequeNumber: e.target.value }
-                              : { note: e.target.value },
-                          )
-                        }
+                        onChange={(e) => set(p.payrollId, { note: e.target.value })}
                       />
                     </div>
+                    {/* Method-specific details (card / cheque / bank / other) */}
+                    {r.include && (
+                      <div className="sm:col-span-4">
+                        <PaymentMethodFields
+                          idPrefix={`pay-${p.payrollId}`}
+                          values={{
+                            method: r.method,
+                            card_holder_name: r.cardHolderName,
+                            card_transaction_number: r.cardTransactionNumber,
+                            card_type: r.cardType,
+                            cheque_number: r.chequeNumber,
+                            bank_account_number: r.bankAccountNumber,
+                            transaction_no: r.transactionNo,
+                          }}
+                          onChange={(patch) =>
+                            set(p.payrollId, {
+                              ...(patch.card_holder_name !== undefined ? { cardHolderName: patch.card_holder_name } : {}),
+                              ...(patch.card_transaction_number !== undefined ? { cardTransactionNumber: patch.card_transaction_number } : {}),
+                              ...(patch.card_type !== undefined ? { cardType: patch.card_type } : {}),
+                              ...(patch.cheque_number !== undefined ? { chequeNumber: patch.cheque_number } : {}),
+                              ...(patch.bank_account_number !== undefined ? { bankAccountNumber: patch.bank_account_number } : {}),
+                              ...(patch.transaction_no !== undefined ? { transactionNo: patch.transaction_no } : {}),
+                            })
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

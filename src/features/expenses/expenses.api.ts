@@ -76,6 +76,12 @@ export interface ExpensePaymentBody {
   account_id?: number | null;
   paid_on?: string;
   note?: string;
+  card_holder_name?: string;
+  card_transaction_number?: string;
+  card_type?: string;
+  cheque_number?: string;
+  bank_account_number?: string;
+  transaction_no?: string;
 }
 
 export interface ExpenseFormBody {

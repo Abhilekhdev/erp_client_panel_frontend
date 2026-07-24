@@ -243,6 +243,8 @@ export interface PaymentInput {
   bank_account_number?: string | null;
   card_number?: string | null;
   card_holder_name?: string | null;
+  card_transaction_number?: string | null;
+  card_type?: string | null;
   transaction_no?: string | null;
 }
 

@@ -25,6 +25,8 @@ export interface AuthUser {
   status: UserStatus;
   businessId: number | null;
   language: string;
+  /** Profile photo storage path (null = show initials). Resolve to a URL with fileUrl(). */
+  avatar?: string | null;
   /** True when the user holds the tenant Admin role (Laravel `Gate::before` wildcard). */
   isBusinessAdmin: boolean;
   roles: string[];

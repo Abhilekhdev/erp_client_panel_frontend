@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
+import { PaymentMethodFields } from '@/components/common/PaymentMethodFields';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,12 @@ interface FormState {
   payAccountId: string;
   payPaidOn: string;
   payNote: string;
+  payCardHolder: string;
+  payCardTxn: string;
+  payCardType: string;
+  payCheque: string;
+  payBankAccount: string;
+  payTxnNo: string;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -51,6 +58,7 @@ const EMPTY: FormState = {
   expenseFor: '', taxRateId: '', finalTotal: '', isRefund: false, additionalNotes: '',
   isRecurring: false, recurInterval: '1', recurIntervalType: 'months', recurRepetitions: '',
   payAmount: '', payMethod: 'cash', payAccountId: '', payPaidOn: today(), payNote: '',
+  payCardHolder: '', payCardTxn: '', payCardType: '', payCheque: '', payBankAccount: '', payTxnNo: '',
 };
 
 function hydrate(e: ExpenseDetail): FormState {
@@ -75,6 +83,7 @@ function hydrate(e: ExpenseDetail): FormState {
     payAccountId: p?.accountId ? String(p.accountId) : '',
     payPaidOn: p ? p.paidOn : today(),
     payNote: p ? p.note : '',
+    payCardHolder: '', payCardTxn: '', payCardType: '', payCheque: '', payBankAccount: '', payTxnNo: '',
   };
 }
 
@@ -88,6 +97,12 @@ function toBody(f: FormState): ExpenseFormBody {
             account_id: f.payAccountId ? Number(f.payAccountId) : null,
             paid_on: f.payPaidOn || undefined,
             note: f.payNote || undefined,
+            card_holder_name: f.payCardHolder || undefined,
+            card_transaction_number: f.payCardTxn || undefined,
+            card_type: f.payCardType || undefined,
+            cheque_number: f.payCheque || undefined,
+            bank_account_number: f.payBankAccount || undefined,
+            transaction_no: f.payTxnNo || undefined,
           },
         ]
       : [];
@@ -368,6 +383,31 @@ export function ExpenseFormPage() {
           <Field label="Payment note" className="sm:col-span-2">
             <Input value={form.payNote} onChange={(e) => set('payNote', e.target.value)} />
           </Field>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <PaymentMethodFields
+              idPrefix="expense-pay"
+              values={{
+                method: form.payMethod,
+                card_holder_name: form.payCardHolder,
+                card_transaction_number: form.payCardTxn,
+                card_type: form.payCardType,
+                cheque_number: form.payCheque,
+                bank_account_number: form.payBankAccount,
+                transaction_no: form.payTxnNo,
+              }}
+              onChange={(patch) =>
+                setForm((f) => ({
+                  ...f,
+                  ...(patch.card_holder_name !== undefined ? { payCardHolder: patch.card_holder_name } : {}),
+                  ...(patch.card_transaction_number !== undefined ? { payCardTxn: patch.card_transaction_number } : {}),
+                  ...(patch.card_type !== undefined ? { payCardType: patch.card_type } : {}),
+                  ...(patch.cheque_number !== undefined ? { payCheque: patch.cheque_number } : {}),
+                  ...(patch.bank_account_number !== undefined ? { payBankAccount: patch.bank_account_number } : {}),
+                  ...(patch.transaction_no !== undefined ? { payTxnNo: patch.transaction_no } : {}),
+                }))
+              }
+            />
+          </div>
         </CardContent>
       </Card>
 

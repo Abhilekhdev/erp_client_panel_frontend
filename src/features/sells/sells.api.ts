@@ -58,6 +58,8 @@ export interface SellMeta {
   priceGroups: { id: number; name: string }[];
   categories: { id: number; name: string; subCategories: { id: number; name: string }[] }[];
   brands: { id: number; name: string }[];
+  /** Payment accounts for the "deposit to" dropdown in the payment modal. */
+  accounts: { id: number; name: string }[];
   paymentMethods: { value: string; label: string }[];
   settings: {
     enableInlineTax: boolean;
@@ -71,6 +73,14 @@ export interface SellMeta {
     weighingScale: { labelPrefix: string; skuLength: number; qtyIntegerLength: number; qtyFractionalLength: number } | null;
     /** POS on/off toggles. */
     posSettings: Record<string, unknown>;
+  };
+  /** Restaurant module flags — the POS shows Table/Staff pickers only when on. */
+  restaurant: {
+    tablesEnabled: boolean;
+    serviceStaffEnabled: boolean;
+    kitchenEnabled: boolean;
+    inlineServiceStaff: boolean;
+    isServiceStaffRequired: boolean;
   };
 }
 
@@ -170,6 +180,8 @@ export interface SaveSellLineBody {
   line_discount_type?: 'fixed' | 'percentage';
   line_discount_amount?: number;
   tax_rate_id?: number;
+  /** Restaurant: the service staff (waiter) for this line. */
+  res_service_staff_id?: number;
 }
 
 export interface SaveSellBody {
@@ -181,6 +193,9 @@ export interface SaveSellBody {
   sub_status?: 'quotation' | 'proforma';
   /** POS "Suspend" — parks the bill as a draft with no payment. */
   is_suspend?: boolean;
+  /** Restaurant: dining table + waiter for this sale. */
+  res_table_id?: number;
+  res_waiter_id?: number;
   pay_term_number?: number;
   pay_term_type?: 'days' | 'months';
   discount_type?: 'fixed' | 'percentage';
@@ -203,6 +218,9 @@ export interface SavePaymentBody {
   method: string;
   account_id?: number;
   paid_on?: string;
+  card_holder_name?: string;
+  card_transaction_number?: string;
+  card_type?: string;
   cheque_number?: string;
   bank_account_number?: string;
   transaction_no?: string;
