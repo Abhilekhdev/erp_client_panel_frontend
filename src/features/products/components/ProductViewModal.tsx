@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { Package } from 'lucide-react';
+import { Package, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
-import { getProduct, getProductMeta } from '../products.api';
+import { getProduct, getProductMeta, getProductStockDetails } from '../products.api';
 
 const money = (n: number | null | undefined) =>
   n == null ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,18 +33,59 @@ export function ProductViewModal({ productId, onClose }: { productId: number | n
     enabled: productId != null,
   });
   const { data: meta } = useQuery({ queryKey: ['product-meta'], queryFn: getProductMeta });
+  const { data: stockRows = [] } = useQuery({
+    queryKey: ['product-stock-details', productId],
+    queryFn: () => getProductStockDetails(productId as number),
+    enabled: productId != null,
+  });
 
   const name = (list: { id: number; name: string }[] | undefined, id: number | null) =>
     id == null ? null : (list?.find((x) => x.id === id)?.name ?? null);
   const locationName = (id: number) => meta?.locations.find((l) => l.id === id)?.name ?? `#${id}`;
+  const priceGroupName = (id: number) => meta?.priceGroups.find((g) => g.id === id)?.name ?? `#${id}`;
   const rackRows = Object.entries(p?.productRacks ?? {});
+
+  const print = () => {
+    if (!p) return;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+    const priceRows = p.productVariations
+      .flatMap((pv) => pv.variations.map((v) => `<tr><td>${esc(v.name === 'DUMMY' ? (pv.name === 'DUMMY' ? '-' : pv.name) : `${pv.name} · ${v.name}`)}</td><td>${esc(v.subSku)}</td><td class="r">${money(v.defaultPurchasePrice)}</td><td class="r">${money(v.dppIncTax)}</td><td class="r">${v.profitPercent}%</td><td class="r">${money(v.defaultSellPrice)}</td><td class="r">${money(v.sellPriceIncTax)}</td></tr>`))
+      .join('');
+    const stockRowsHtml = stockRows
+      .map((r) => `<tr><td>${esc(r.sku)}</td><td>${esc(r.product)}${r.variation ? ` (${esc(r.variation)})` : ''}</td><td>${esc(r.location)}</td><td class="r">${money(r.unitPrice)}</td><td class="r">${r.currentStock} ${esc(r.unit)}</td><td class="r">${money(r.stockValue)}</td><td class="r">${r.totalSold}</td><td class="r">${r.totalTransferred}</td><td class="r">${r.totalAdjusted}</td></tr>`)
+      .join('');
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(p.name)}</title><style>
+      body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:16px}
+      h2{margin:0 0 8px}h3{margin:16px 0 6px;font-size:13px}
+      table{width:100%;border-collapse:collapse;margin-top:4px}
+      th,td{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#f3f4f6}
+      .r{text-align:right}
+    </style></head><body>
+      <h2>${esc(p.name)}</h2>
+      <div>SKU: <b>${esc(p.sku)}</b></div>
+      <h3>Pricing</h3>
+      <table><thead><tr><th>Variation</th><th>SKU</th><th class="r">Purchase (exc)</th><th class="r">Purchase (inc)</th><th class="r">Margin</th><th class="r">Sale (exc)</th><th class="r">Sale (inc)</th></tr></thead><tbody>${priceRows}</tbody></table>
+      <h3>Product Stock Details</h3>
+      <table><thead><tr><th>SKU</th><th>Product</th><th>Location</th><th class="r">Unit price</th><th class="r">Current stock</th><th class="r">Stock value</th><th class="r">Sold</th><th class="r">Transferred</th><th class="r">Adjusted</th></tr></thead><tbody>${stockRowsHtml || '<tr><td colspan="9">No stock</td></tr>'}</tbody></table>
+      <script>window.onload=function(){window.print();}</script>
+    </body></html>`);
+    w.document.close();
+  };
 
   return (
     <Modal
       open={productId != null}
       onClose={onClose}
       title={p?.name ?? 'Product'}
-      className="max-w-3xl max-h-[85vh] overflow-y-auto"
+      className="max-w-4xl"
+      footer={
+        <>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <Button type="button" size="sm" disabled={!p} onClick={print}><Printer className="h-4 w-4" />Print</Button>
+        </>
+      }
     >
       {isLoading || !p ? (
         <div className="space-y-3">
@@ -110,9 +152,12 @@ export function ProductViewModal({ productId, onClose }: { productId: number | n
                   <TR>
                     <TH>Variation</TH>
                     <TH>SKU</TH>
-                    <TH className="text-right">Purchase</TH>
-                    <TH className="text-right">Sell (exc. tax)</TH>
-                    <TH className="text-right">Sell (inc. tax)</TH>
+                    <TH className="text-right">Purchase (exc.)</TH>
+                    <TH className="text-right">Purchase (inc.)</TH>
+                    <TH className="text-right">Margin %</TH>
+                    <TH className="text-right">Sale (exc.)</TH>
+                    <TH className="text-right">Sale (inc.)</TH>
+                    <TH>Group prices</TH>
                   </TR>
                 </THead>
                 <TBody>
@@ -122,8 +167,23 @@ export function ProductViewModal({ productId, onClose }: { productId: number | n
                         <TD>{v.name === 'DUMMY' ? (pv.name === 'DUMMY' ? '—' : pv.name) : `${pv.name} · ${v.name}`}</TD>
                         <TD className="font-mono text-xs">{v.subSku}</TD>
                         <TD className="text-right">{money(v.defaultPurchasePrice)}</TD>
+                        <TD className="text-right">{money(v.dppIncTax)}</TD>
+                        <TD className="text-right">{v.profitPercent}%</TD>
                         <TD className="text-right">{money(v.defaultSellPrice)}</TD>
                         <TD className="text-right">{money(v.sellPriceIncTax)}</TD>
+                        <TD className="text-xs">
+                          {v.groupPrices.length === 0 ? (
+                            <span className="text-muted-foreground/60">—</span>
+                          ) : (
+                            <div className="space-y-0.5">
+                              {v.groupPrices.map((g) => (
+                                <div key={g.priceGroupId} className="whitespace-nowrap">
+                                  {priceGroupName(g.priceGroupId)}: <span className="font-medium">{money(g.priceIncTax)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </TD>
                       </TR>
                     )),
                   )}
@@ -154,6 +214,47 @@ export function ProductViewModal({ productId, onClose }: { productId: number | n
                         <TD>{r.position || '—'}</TD>
                       </TR>
                     ))}
+                  </TBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {/* Product Stock Details — per-location current stock, cost value, and units moved. */}
+          {p.enableStock && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Product stock details</p>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH>SKU</TH>
+                      <TH>Location</TH>
+                      <TH className="text-right">Unit price</TH>
+                      <TH className="text-right">Current stock</TH>
+                      <TH className="text-right">Stock value</TH>
+                      <TH className="text-right">Sold</TH>
+                      <TH className="text-right">Transferred</TH>
+                      <TH className="text-right">Adjusted</TH>
+                    </TR>
+                  </THead>
+                  <TBody>
+                    {stockRows.length === 0 ? (
+                      <TR><TD colSpan={8} className="py-6 text-center text-muted-foreground">No stock at any location yet.</TD></TR>
+                    ) : (
+                      stockRows.map((r, i) => (
+                        <TR key={`${r.variationId}-${r.locationId}-${i}`}>
+                          <TD className="font-mono text-xs">{r.sku}</TD>
+                          <TD>{r.location}</TD>
+                          <TD className="text-right">{money(r.unitPrice)}</TD>
+                          <TD className="text-right">{r.currentStock} {r.unit}</TD>
+                          <TD className="text-right">{money(r.stockValue)}</TD>
+                          <TD className="text-right">{r.totalSold} {r.unit}</TD>
+                          <TD className="text-right">{r.totalTransferred} {r.unit}</TD>
+                          <TD className="text-right">{r.totalAdjusted} {r.unit}</TD>
+                        </TR>
+                      ))
+                    )}
                   </TBody>
                 </Table>
               </div>

@@ -273,6 +273,26 @@ export async function getProduct(id: number): Promise<ProductDetail> {
   const { data } = await api.get<Envelope<ProductDetail>>(`/products/${id}`);
   return data.data;
 }
+
+export interface ProductStockDetailRow {
+  variationId: number;
+  sku: string;
+  product: string;
+  variation: string;
+  locationId: number;
+  location: string;
+  unit: string;
+  unitPrice: number;
+  currentStock: number;
+  stockValue: number;
+  totalSold: number;
+  totalTransferred: number;
+  totalAdjusted: number;
+}
+export async function getProductStockDetails(id: number): Promise<ProductStockDetailRow[]> {
+  const { data } = await api.get<Envelope<{ data: ProductStockDetailRow[] }>>(`/products/${id}/stock-details`);
+  return data.data.data;
+}
 export async function createProduct(body: SaveProductBody): Promise<ProductDetail> {
   const { data } = await api.post<Envelope<ProductDetail>>('/products', body);
   return data.data;

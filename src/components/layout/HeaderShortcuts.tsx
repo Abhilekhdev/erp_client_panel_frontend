@@ -17,8 +17,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/features/auth/usePermission';
 import { clockIn, clockOut, getClockStatus } from '@/features/hrm/attendance.api';
+import { getProfitLoss } from '@/features/reports/reports.api';
 import { getApiErrorMessage } from '@/lib/api/axios';
+import { formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+
+/** Today as a local YYYY-MM-DD (not UTC — the profit window must match the user's calendar day). */
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 /**
  * The header shortcut row — 1:1 with GOURI's `include/header.blade.php` button strip:
@@ -96,6 +104,18 @@ export function HeaderShortcuts() {
     refetchOnWindowFocus: true,
   });
   const isClockedIn = Boolean(status?.clockedIn);
+
+  // Today's profit — GOURI's header widget; a profit-loss report scoped to today's date only.
+  const profitDay = todayIso();
+  const {
+    data: profit,
+    isLoading: profitLoading,
+    isError: profitError,
+  } = useQuery({
+    queryKey: ['today-profit', profitDay],
+    queryFn: () => getProfitLoss({ startDate: profitDay, endDate: profitDay }),
+    enabled: profitOpen && has('profit_loss_report.view'),
+  });
 
   const punch = useMutation({
     mutationFn: () => (isClockedIn ? clockOut({ note }) : clockIn({ note })),
@@ -266,16 +286,56 @@ export function HeaderShortcuts() {
           </Button>
         }
       >
-        <div className="space-y-2 py-2 text-center">
-          <BadgeDollarSign className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="text-sm font-medium">Not available yet</p>
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            Profit is calculated from sales and purchases. Those modules (the transaction core)
-            aren&apos;t built yet, so there is no figure to show — this will light up automatically
-            once they land.
-          </p>
-        </div>
+        {profitLoading ? (
+          <div className="space-y-2 py-6 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : profitError ? (
+          <div className="py-4 text-center text-sm text-destructive">
+            Could not load today&apos;s profit. Please try again.
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            {/* Headline: gross profit for today (sell revenue − allocated purchase cost). */}
+            <div className="rounded-lg border bg-muted/40 p-4 text-center">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Gross profit today
+              </p>
+              <p
+                className={cn(
+                  'mt-1 text-2xl font-semibold tabular-nums',
+                  (profit?.grossProfit ?? 0) < 0 ? 'text-destructive' : 'text-emerald-600',
+                )}
+              >
+                {formatMoney(profit?.grossProfit ?? 0)}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <ProfitRow label="Total sell" value={profit?.totalSell ?? 0} />
+              <ProfitRow label="Sell return" value={profit?.sellReturn ?? 0} />
+              <ProfitRow label="Total purchase" value={profit?.totalPurchase ?? 0} />
+              <ProfitRow label="Purchase return" value={profit?.purchaseReturn ?? 0} />
+              <ProfitRow label="Total expense" value={profit?.totalExpense ?? 0} />
+              <ProfitRow label="Net profit" value={profit?.netProfit ?? 0} strong />
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Gross profit = sold value − its purchase cost. Net profit also subtracts expenses.
+            </p>
+          </div>
+        )}
       </Modal>
+    </div>
+  );
+}
+
+/** One label/amount line in the profit breakdown. `strong` highlights the net-profit row. */
+function ProfitRow({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+  return (
+    <div className={cn('flex items-center justify-between', strong && 'font-semibold')}>
+      <span className={strong ? '' : 'text-muted-foreground'}>{label}</span>
+      <span
+        className={cn('tabular-nums', strong && value < 0 && 'text-destructive')}
+      >
+        {formatMoney(value)}
+      </span>
     </div>
   );
 }

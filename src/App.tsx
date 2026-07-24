@@ -77,6 +77,7 @@ import { ReturnFormPage } from '@/features/purchase-returns/pages/ReturnFormPage
 import { ReturnsListPage } from '@/features/purchase-returns/pages/ReturnsListPage';
 import { SalesListPage } from '@/features/sells/pages/SalesListPage';
 import { SellFormPage } from '@/features/sells/pages/SellFormPage';
+import { PosPage } from '@/features/sells/pages/PosPage';
 import { SalesOrdersListPage } from '@/features/sales-orders/pages/SalesOrdersListPage';
 import { SalesOrderFormPage } from '@/features/sales-orders/pages/SalesOrderFormPage';
 import { SellReturnsListPage } from '@/features/sell-returns/pages/SellReturnsListPage';
@@ -85,6 +86,7 @@ import { ClaimsPage } from '@/features/hrm/pages/ClaimsPage';
 import { ClaimCategoriesPage } from '@/features/hrm/pages/ClaimCategoriesPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { PosLayout } from '@/layouts/PosLayout';
 
 // Routes that have real, purpose-built pages (excluded from the generic ModulePage fallback).
 const CUSTOM_ROUTES = new Set([
@@ -114,6 +116,8 @@ const CUSTOM_ROUTES = new Set([
   '/purchase-returns',
   '/sales',
   '/sales/create',
+  '/pos',
+  '/pos/create',
   '/sales-orders',
   '/sales-orders/create',
   '/sell-returns',
@@ -252,6 +256,8 @@ export function App() {
             {/* Sell — the sell side of the transaction core */}
             <Route path="/sales" element={<SalesListPage />} />
             <Route path="/sales/create" element={<SellFormPage />} />
+            {/* POS list (New-POS till itself is full-screen — see the PosLayout route below). */}
+            <Route path="/pos" element={<SalesListPage />} />
             <Route path="/sales/:id/edit" element={<SellFormPage />} />
             <Route path="/sales-orders" element={<SalesOrdersListPage />} />
             <Route path="/sales-orders/create" element={<SalesOrderFormPage />} />
@@ -349,6 +355,11 @@ export function App() {
                 }
               />
             ))}
+          </Route>
+
+          {/* The POS till runs full-screen (no sidebar) in its own slim-header layout, like GOURI. */}
+          <Route element={<PosLayout />}>
+            <Route path="/pos/create" element={<PosPage />} />
           </Route>
         </Route>
 

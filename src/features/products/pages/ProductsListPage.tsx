@@ -145,6 +145,66 @@ export function ProductsListPage() {
           </div>
         ),
     },
+    {
+      key: 'actions',
+      header: 'Action',
+      hideable: false,
+      stopClick: true,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      render: (p: ProductListRow) => (
+        <div className="flex justify-end">
+          {/* GOURI's per-row "Actions" dropdown, ported 1:1 — the icon strip overflowed the cell. */}
+          <RowActions
+            actions={[
+              { label: 'View', icon: <Eye className="h-4 w-4" />, onClick: () => setViewId(p.id), show: canView },
+              { label: 'Labels', icon: <Barcode className="h-4 w-4" />, onClick: () => navigate(`/labels?productId=${p.id}`) },
+              { label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => navigate(`/products/${p.id}/edit`), show: canUpdate },
+              {
+                label: p.isInactive ? 'Reactivate' : 'Deactivate',
+                icon: <Power className="h-4 w-4" />,
+                onClick: () => toggle.mutate(p),
+                show: canUpdate,
+              },
+              {
+                label: 'Add or edit opening stock',
+                icon: <Database className="h-4 w-4" />,
+                onClick: () => setOpeningStockId(p.id),
+                // GOURI: only for stock-tracked products, gated on product.opening_stock.
+                show: canOpeningStock && p.enableStock,
+                divider: true,
+              },
+              {
+                label: 'Product stock history',
+                icon: <History className="h-4 w-4" />,
+                onClick: () => navigate(`/products/${p.id}/stock-history`),
+                show: canView && p.enableStock,
+              },
+              {
+                label: 'Add or edit Group Prices',
+                icon: <Layers className="h-4 w-4" />,
+                onClick: () => setGroupPricesId(p.id),
+                show: canUpdate,
+              },
+              {
+                label: 'Duplicate Product',
+                icon: <Copy className="h-4 w-4" />,
+                onClick: () => navigate(`/products/create?duplicate=${p.id}`),
+                show: canCreate,
+              },
+              {
+                label: 'Delete',
+                icon: <Trash2 className="h-4 w-4" />,
+                onClick: () => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id),
+                show: canDelete,
+                destructive: true,
+                divider: true,
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
     { key: 'sku', header: 'SKU', render: (p) => <span className="font-mono text-xs">{p.sku}</span> },
     {
       key: 'name',
@@ -214,65 +274,6 @@ export function ProductsListPage() {
           },
         ]
       : []),
-    {
-      key: 'actions',
-      header: 'Action',
-      hideable: false,
-      headerClassName: 'text-right',
-      className: 'text-right',
-      render: (p: ProductListRow) => (
-        <div className="flex justify-end">
-          {/* GOURI's per-row "Actions" dropdown, ported 1:1 — the icon strip overflowed the cell. */}
-          <RowActions
-            actions={[
-              { label: 'View', icon: <Eye className="h-4 w-4" />, onClick: () => setViewId(p.id), show: canView },
-              { label: 'Labels', icon: <Barcode className="h-4 w-4" />, onClick: () => navigate(`/labels?productId=${p.id}`) },
-              { label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => navigate(`/products/${p.id}/edit`), show: canUpdate },
-              {
-                label: p.isInactive ? 'Reactivate' : 'Deactivate',
-                icon: <Power className="h-4 w-4" />,
-                onClick: () => toggle.mutate(p),
-                show: canUpdate,
-              },
-              {
-                label: 'Add or edit opening stock',
-                icon: <Database className="h-4 w-4" />,
-                onClick: () => setOpeningStockId(p.id),
-                // GOURI: only for stock-tracked products, gated on product.opening_stock.
-                show: canOpeningStock && p.enableStock,
-                divider: true,
-              },
-              {
-                label: 'Product stock history',
-                icon: <History className="h-4 w-4" />,
-                onClick: () => navigate(`/products/${p.id}/stock-history`),
-                show: canView && p.enableStock,
-              },
-              {
-                label: 'Add or edit Group Prices',
-                icon: <Layers className="h-4 w-4" />,
-                onClick: () => setGroupPricesId(p.id),
-                show: canUpdate,
-              },
-              {
-                label: 'Duplicate Product',
-                icon: <Copy className="h-4 w-4" />,
-                onClick: () => navigate(`/products/create?duplicate=${p.id}`),
-                show: canCreate,
-              },
-              {
-                label: 'Delete',
-                icon: <Trash2 className="h-4 w-4" />,
-                onClick: () => window.confirm(`Delete "${p.name}"?`) && remove.mutate(p.id),
-                show: canDelete,
-                destructive: true,
-                divider: true,
-              },
-            ]}
-          />
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -454,6 +455,7 @@ export function ProductsListPage() {
         data={data?.data ?? []}
         rowKey={(p) => p.id}
         loading={isLoading}
+        onRowClick={canView ? (p) => setViewId(p.id) : undefined}
         page={page}
         pageSize={pageSize}
         total={data?.total ?? 0}

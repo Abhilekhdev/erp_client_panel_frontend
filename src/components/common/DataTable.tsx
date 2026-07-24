@@ -17,6 +17,8 @@ export interface Column<T> {
   title?: string;
   /** Set false to keep this column always visible (e.g. identity / actions). Default: true. */
   hideable?: boolean;
+  /** Set true for cells with their own controls (actions, links) so a row click doesn't fire. */
+  stopClick?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -45,6 +47,9 @@ interface DataTableProps<T> {
 
   toolbar?: ReactNode;
   emptyMessage?: string;
+
+  /** Makes each row clickable (e.g. to open a view modal). Cells marked `stopClick` won't fire it. */
+  onRowClick?: (row: T) => void;
 
   // Reset filters — shows a "Reset" button next to the toolbar when filters are active.
   onResetFilters?: () => void;
@@ -93,6 +98,7 @@ export function DataTable<T>({
   onResetFilters,
   filtersActive,
   columnsStorageKey,
+  onRowClick,
 }: DataTableProps<T>) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -224,9 +230,13 @@ export function DataTable<T>({
                 const key = rowKey(row);
                 const selected = selectedKeys.includes(key);
                 return (
-                  <TR key={key} className={cn(selected && 'bg-primary/5')}>
+                  <TR
+                    key={key}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    className={cn(selected && 'bg-primary/5', onRowClick && 'cursor-pointer hover:bg-muted/40')}
+                  >
                     {selectable && (
-                      <TD>
+                      <TD onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected}
@@ -237,7 +247,7 @@ export function DataTable<T>({
                       </TD>
                     )}
                     {visibleColumns.map((c) => (
-                      <TD key={c.key} className={c.className}>
+                      <TD key={c.key} className={c.className} onClick={c.stopClick ? (e) => e.stopPropagation() : undefined}>
                         {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '')}
                       </TD>
                     ))}

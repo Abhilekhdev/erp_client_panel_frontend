@@ -43,16 +43,21 @@ export interface ListSellsParams {
 
 export interface SellMeta {
   locations: { id: number; name: string }[];
+  /** The walk-in default customer the POS pre-selects (null if none is flagged). */
+  defaultCustomerId: number | null;
   customers: {
     id: number;
     name: string;
     mobile: string;
+    isDefault: boolean;
     payTermNumber: number | null;
     payTermType: 'days' | 'months' | null;
     address: string;
   }[];
   taxRates: { id: number; name: string; amount: number }[];
   priceGroups: { id: number; name: string }[];
+  categories: { id: number; name: string; subCategories: { id: number; name: string }[] }[];
+  brands: { id: number; name: string }[];
   paymentMethods: { value: string; label: string }[];
   settings: {
     enableInlineTax: boolean;
@@ -60,6 +65,12 @@ export interface SellMeta {
     currencyPrecision: number;
     quantityPrecision: number;
     currency: { code: string; symbol: string };
+    /** POS keyboard map (GOURI defaults when uncustomised). Keys → key-combo strings. */
+    keyboardShortcuts: Record<string, string>;
+    /** Weighing-scale barcode layout (null → feature off). */
+    weighingScale: { labelPrefix: string; skuLength: number; qtyIntegerLength: number; qtyFractionalLength: number } | null;
+    /** POS on/off toggles. */
+    posSettings: Record<string, unknown>;
   };
 }
 
@@ -69,6 +80,8 @@ export interface SellProductHit {
   name: string;
   variation: string;
   sku: string;
+  /** Product image path (POS grid only; the line search omits it). */
+  image?: string | null;
   enableStock: boolean;
   currentStock: number | null;
   taxRateId: number | null;
@@ -117,6 +130,7 @@ export interface SellDetail {
   transactionDate: string;
   status: SellStatus;
   isDraft: boolean;
+  isSuspend: boolean;
   paymentStatus: PaymentStatus;
   contactId: number | null;
   customer: { id: number; name: string; mobile: string | null } | null;
@@ -165,6 +179,8 @@ export interface SaveSellBody {
   transaction_date: string;
   status: 'final' | 'draft';
   sub_status?: 'quotation' | 'proforma';
+  /** POS "Suspend" — parks the bill as a draft with no payment. */
+  is_suspend?: boolean;
   pay_term_number?: number;
   pay_term_type?: 'days' | 'months';
   discount_type?: 'fixed' | 'percentage';
@@ -204,6 +220,27 @@ export async function getSellMeta(): Promise<SellMeta> {
 export async function searchSellProducts(params: { search: string; location_id?: number; price_group_id?: number }): Promise<SellProductHit[]> {
   const { data } = await api.get<Envelope<{ data: SellProductHit[] }>>('/sells/products', { params });
   return data.data.data;
+}
+export interface PosGridResponse { data: SellProductHit[]; page: number; hasMore: boolean }
+export async function posGridProducts(params: {
+  location_id?: number; category_id?: number | string; brand_id?: number | string; search?: string; price_group_id?: number; page?: number;
+}): Promise<PosGridResponse> {
+  const { data } = await api.get<Envelope<PosGridResponse>>('/sells/pos/products', { params });
+  return data.data;
+}
+export interface SuspendedSale {
+  id: number;
+  refNo: string;
+  transactionDate: string;
+  customer: string;
+  location: string;
+  finalTotal: number;
+  items: number;
+  note: string;
+}
+export async function listSuspendedSells(locationId?: number): Promise<SuspendedSale[]> {
+  const { data } = await api.get<Envelope<SuspendedSale[]>>('/sells/suspended', { params: { location_id: locationId } });
+  return data.data;
 }
 export async function getSell(id: number): Promise<SellDetail> {
   const { data } = await api.get<Envelope<SellDetail>>(`/sells/${id}`);
